@@ -236,6 +236,99 @@ If documents don't contain relevant info, say so clearly and offer general help.
                 return "I'm experiencing high usage right now. Please try again in a moment."
             return "I apologize, but I'm experiencing technical difficulties. Please try again."
     
+    def generate_simple_response(
+        self, 
+        user_message: str, 
+        file_content: str = "",
+        chat_history: List[Dict[str, Any]] = None
+    ) -> str:
+        """Generate AI response without chunking or embedding - simplified approach"""
+        try:
+            # Check cache first
+            cache_key = self._get_cache_key(user_message + str(len(file_content)))
+            if cache_key in self.response_cache:
+                cached_data = self.response_cache[cache_key]
+                if self._is_cache_valid(cached_data['timestamp']):
+                    logger.info("Returning cached response")
+                    return cached_data['response']
+            
+            # Try fallback response first (no API call needed)
+            fallback_response = self._get_fallback_response(user_message)
+            if fallback_response and not file_content:
+                logger.info("Using fallback response")
+                return fallback_response
+            
+            # Check rate limit
+            if not self._check_rate_limit():
+                logger.warning("Rate limit reached, waiting...")
+                time.sleep(60)  # Wait 1 minute
+            
+            # Build conversation history
+            conversation_history = ""
+            if chat_history:
+                for exchange in chat_history[-3:]:  # Last 3 exchanges
+                    conversation_history += f"User: {exchange['user']}\nBot: {exchange['bot']}\n\n"
+            
+            # Create system prompt
+            system_prompt = """You are a helpful AI assistant. Be concise, friendly, and accurate. 
+Keep responses under 300 words when possible."""
+            
+            if file_content:
+                system_prompt += """
+You have access to the user's uploaded file content. Use this information to provide accurate answers. 
+If the file content doesn't contain relevant info, say so clearly and offer general help.
+"""
+            
+            # Build messages for the API
+            messages = [
+                {"role": "system", "content": system_prompt}
+            ]
+            
+            # Add conversation history if available
+            if conversation_history:
+                messages.append({
+                    "role": "user", 
+                    "content": f"Previous conversation:\n{conversation_history}"
+                })
+            
+            # Add file content if available
+            if file_content:
+                messages.append({
+                    "role": "user", 
+                    "content": f"File content:\n{file_content[:4000]}"  # Limit to 4000 chars
+                })
+            
+            # Add current user message
+            messages.append({
+                "role": "user", 
+                "content": user_message
+            })
+            
+            # Make API call
+            self._add_request_timestamp()
+            response = self.client.chat.completions.create(
+                model=self.chat_model,
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7,
+                stream=False
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+            # Cache the response
+            self.response_cache[cache_key] = {
+                'response': ai_response,
+                'timestamp': time.time()
+            }
+            
+            logger.info("Generated AI response successfully")
+            return ai_response
+            
+        except Exception as e:
+            logger.error(f"Error generating response: {str(e)}")
+            return f"I apologize, but I'm having trouble processing your request right now. Please try again later. Error: {str(e)}"
+    
     def clear_cache(self):
         """Clear response cache"""
         self.response_cache.clear()
