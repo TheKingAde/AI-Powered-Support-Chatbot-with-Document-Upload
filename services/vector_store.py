@@ -3,8 +3,6 @@ import numpy as np
 from typing import List, Dict, Any, Tuple
 from sklearn.metrics.pairwise import cosine_similarity
 
-from .ai_service import AIService
-
 logger = logging.getLogger(__name__)
 
 class VectorStore:
@@ -14,13 +12,6 @@ class VectorStore:
         """Initialize the vector store"""
         self.documents = []  # List of document chunks with metadata
         self.embeddings = []  # Corresponding embeddings matrix
-        self.ai_service = None  # Will be initialized when needed
-    
-    def _get_ai_service(self):
-        """Lazy initialization of AI service to avoid circular imports"""
-        if self.ai_service is None:
-            self.ai_service = AIService()
-        return self.ai_service
     
     def add_documents(self, chunks: List[str], embeddings: List[List[float]], filename: str):
         """
@@ -67,8 +58,11 @@ class VectorStore:
             if not self.documents or not self.embeddings:
                 return []
             
+            # Import here to avoid circular import
+            from .ai_service import AIService
+            
             # Get query embedding
-            ai_service = self._get_ai_service()
+            ai_service = AIService()
             query_embedding = ai_service.create_query_embedding(query)
             
             # Calculate similarities

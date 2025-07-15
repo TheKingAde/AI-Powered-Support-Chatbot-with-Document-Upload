@@ -1,4 +1,4 @@
-// AI-Powered Support Chatbot - Frontend JavaScript
+// AI-Powered Support Chatbot - Frontend JavaScript (Simplified)
 class ChatbotApp {
     constructor() {
         this.initializeElements();
@@ -6,15 +6,8 @@ class ChatbotApp {
         this.loadDocuments();
         this.setupAnimations();
         
-        // Rate limiting and debouncing
-        this.lastRequestTime = 0;
-        this.minRequestInterval = 2000; // 2 seconds between requests
-        this.requestDebounceTimer = null;
+        // Simple state tracking
         this.isRequestInProgress = false;
-        
-        // Message queue for when rate limited
-        this.messageQueue = [];
-        this.isProcessingQueue = false;
     }
 
     initializeElements() {
@@ -60,12 +53,12 @@ class ChatbotApp {
         this.uploadArea.addEventListener('dragleave', (e) => this.handleDragLeave(e));
         this.uploadArea.addEventListener('drop', (e) => this.handleDrop(e));
 
-        // Chat events with rate limiting
-        this.sendButton.addEventListener('click', () => this.handleSendMessage());
+        // Chat events - simplified
+        this.sendButton.addEventListener('click', () => this.sendMessage());
         this.chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                this.handleSendMessage();
+                this.sendMessage();
             }
         });
         this.chatInput.addEventListener('input', () => this.updateCharCounter());
@@ -99,289 +92,35 @@ class ChatbotApp {
         // Add scroll animation observer
         const observerOptions = {
             threshold: 0.1,
-            rootMargin: '0px 0px -100px 0px'
+            rootMargin: '0px 0px -50px 0px'
         };
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
+                    entry.target.classList.add('animate-in');
                 }
             });
         }, observerOptions);
 
-        // Observe sections for animation
-        document.querySelectorAll('.upload-card, .chat-card, .documents-card').forEach(el => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateY(20px)';
-            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        // Observe elements for animation
+        document.querySelectorAll('.upload-card, .chat-card, .controls-card').forEach(el => {
             observer.observe(el);
         });
     }
 
-    // File Upload Functionality
-    handleDragOver(e) {
-        e.preventDefault();
-        this.uploadArea.classList.add('drag-over');
-    }
-
-    handleDragLeave(e) {
-        e.preventDefault();
-        this.uploadArea.classList.remove('drag-over');
-    }
-
-    handleDrop(e) {
-        e.preventDefault();
-        this.uploadArea.classList.remove('drag-over');
-        const files = Array.from(e.dataTransfer.files);
-        this.uploadFiles(files);
-    }
-
-    handleFileSelect(e) {
-        const files = Array.from(e.target.files);
-        this.uploadFiles(files);
-    }
-
-    async uploadFiles(files) {
-        if (!files.length) return;
-
-        // Validate files
-        const validFiles = this.validateFiles(files);
-        if (!validFiles.length) {
-            this.showToast('No valid files selected', 'error');
-            return;
-        }
-
-        // Show progress
-        this.showUploadProgress();
-        
-        try {
-            const formData = new FormData();
-            validFiles.forEach(file => {
-                formData.append('files', file);
-            });
-
-            // Simulate progress animation
-            this.animateProgress(0, 30, 500);
-
-            const response = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            // Complete progress animation
-            this.animateProgress(30, 90, 1000);
-
-            const result = await response.json();
-
-            if (response.ok) {
-                this.animateProgress(90, 100, 200);
-                setTimeout(() => {
-                    this.hideUploadProgress();
-                    this.displayUploadResults(result);
-                    this.loadDocuments();
-                    this.showToast(result.message, 'success');
-                }, 300);
-            } else {
-                throw new Error(result.error || 'Upload failed');
-            }
-
-        } catch (error) {
-            console.error('Upload error:', error);
-            this.hideUploadProgress();
-            this.showToast(`Upload failed: ${error.message}`, 'error');
-        }
-
-        // Reset file input
-        this.fileInput.value = '';
-    }
-
-    validateFiles(files) {
-        const maxSize = 50 * 1024 * 1024; // 50MB
-        const allowedTypes = [
-            'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel',
-            'text/csv',
-            'text/plain',
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/gif',
-            'image/bmp'
-        ];
-
-        return files.filter(file => {
-            if (file.size > maxSize) {
-                this.showToast(`File ${file.name} is too large (max 50MB)`, 'error');
-                return false;
-            }
-            
-            const isValidType = allowedTypes.includes(file.type) || 
-                              /\.(pdf|docx|xlsx|xls|csv|txt|jpg|jpeg|png|gif|bmp)$/i.test(file.name);
-            
-            if (!isValidType) {
-                this.showToast(`File ${file.name} has unsupported format`, 'error');
-                return false;
-            }
-            
-            return true;
-        });
-    }
-
-    showUploadProgress() {
-        this.uploadProgress.style.display = 'block';
-        this.progressFill.style.width = '0%';
-        this.progressText.textContent = 'Processing files...';
-    }
-
-    hideUploadProgress() {
-        this.uploadProgress.style.display = 'none';
-    }
-
-    animateProgress(from, to, duration) {
-        const startTime = performance.now();
-        const animate = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const currentValue = from + (to - from) * this.easeOutCubic(progress);
-            
-            this.progressFill.style.width = `${currentValue}%`;
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        };
-        requestAnimationFrame(animate);
-    }
-
-    easeOutCubic(t) {
-        return 1 - Math.pow(1 - t, 3);
-    }
-
-    displayUploadResults(result) {
-        this.uploadedFiles.innerHTML = '';
-        
-        if (result.files && result.files.length > 0) {
-            result.files.forEach(file => {
-                const fileElement = this.createFileResultElement(file);
-                this.uploadedFiles.appendChild(fileElement);
-            });
-        }
-    }
-
-    createFileResultElement(file) {
-        const div = document.createElement('div');
-        div.className = `file-result ${file.status}`;
-        
-        const icon = file.status === 'success' ? 'fas fa-check' : 'fas fa-times';
-        const chunks = file.chunks ? `${file.chunks} chunks` : '';
-        const message = file.message || '';
-        
-        div.innerHTML = `
-            <div class="file-info">
-                <div class="file-icon">
-                    <i class="${icon}"></i>
-                </div>
-                <div class="file-details">
-                    <h4>${file.filename}</h4>
-                    <div class="file-meta">${chunks} ${message}</div>
-                </div>
-            </div>
-        `;
-        
-        return div;
-    }
-
-    // Chat Functionality
-    // Rate limiting check
-    canMakeRequest() {
-        const now = Date.now();
-        const timeSinceLastRequest = now - this.lastRequestTime;
-        return timeSinceLastRequest >= this.minRequestInterval && !this.isRequestInProgress;
-    }
-
-    // Debounced message sending
-    handleSendMessage() {
-        if (this.requestDebounceTimer) {
-            clearTimeout(this.requestDebounceTimer);
-        }
-
-        this.requestDebounceTimer = setTimeout(() => {
-            this.sendMessage();
-        }, 300); // 300ms debounce
-    }
-
-    // Enhanced message sending with queue
+    // Chat Functionality - Simplified
     async sendMessage() {
         const message = this.chatInput.value.trim();
-        if (!message) return;
+        if (!message || this.isRequestInProgress) return;
 
-        // Check if we can make a request immediately
-        if (this.canMakeRequest()) {
-            await this.processMessage(message);
-        } else {
-            // Add to queue and show user feedback
-            this.messageQueue.push(message);
-            this.showQueuedMessage(message);
-            this.processQueue();
-        }
-    }
-
-    showQueuedMessage(message) {
+        // Add user message to chat
         this.addMessage(message, 'user');
         this.chatInput.value = '';
         this.updateCharCounter();
         
-        this.addMessage(
-            "⏳ Your message is queued. I'll respond in a moment to avoid rate limits...", 
-            'bot',
-            { isSystemMessage: true }
-        );
-    }
-
-    async processQueue() {
-        if (this.isProcessingQueue || this.messageQueue.length === 0) return;
-        
-        this.isProcessingQueue = true;
-        
-        while (this.messageQueue.length > 0 && this.canMakeRequest()) {
-            const message = this.messageQueue.shift();
-            await this.processMessage(message, true); // Skip adding user message since it's already added
-            
-            // Wait between requests to respect rate limits
-            if (this.messageQueue.length > 0) {
-                await this.sleep(this.minRequestInterval);
-            }
-        }
-        
-        this.isProcessingQueue = false;
-        
-        // If there are still messages in queue, schedule next processing
-        if (this.messageQueue.length > 0) {
-            setTimeout(() => this.processQueue(), this.minRequestInterval);
-        }
-    }
-
-    sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    async processMessage(message, skipUserMessage = false) {
-        if (!skipUserMessage) {
-            // Add user message to chat
-            this.addMessage(message, 'user');
-            this.chatInput.value = '';
-            this.updateCharCounter();
-        }
-        
         // Set request state
         this.isRequestInProgress = true;
-        this.lastRequestTime = Date.now();
-        
-        // Disable input and show typing indicator
         this.setInputState(false);
         this.showTypingIndicator();
 
@@ -413,19 +152,15 @@ class ChatbotApp {
             console.error('Chat error:', error);
             this.hideTypingIndicator();
             
-            // Enhanced error handling for rate limits
-            if (error.message.includes('429') || error.message.includes('rate')) {
+            if (error.message.includes('429') || error.message.includes('Too many requests')) {
                 this.addMessage(
-                    '⚠️ I\'m experiencing high usage right now. Your message has been queued and I\'ll respond shortly. Thanks for your patience!', 
-                    'bot',
-                    { isSystemMessage: true }
+                    'I\'m receiving too many requests right now. Please wait a moment and try again.', 
+                    'bot'
                 );
-                // Re-queue the message
-                this.messageQueue.unshift(message);
             } else {
                 this.addMessage('Sorry, I encountered an error. Please try again.', 'bot');
-                this.showToast(`Chat error: ${error.message}`, 'error');
             }
+            this.showToast(`Error: ${error.message}`, 'error');
         } finally {
             // Re-enable input
             this.isRequestInProgress = false;
@@ -435,26 +170,17 @@ class ChatbotApp {
 
     addMessage(text, sender, metadata = {}) {
         const messageDiv = document.createElement('div');
-        let messageClass = `message ${sender}-message`;
-        
-        if (metadata.isSystemMessage) {
-            messageClass += ' system-message';
-        }
-        
-        messageDiv.className = messageClass;
+        messageDiv.className = `message ${sender}-message`;
         
         const avatar = sender === 'user' ? 'fas fa-user' : 'fas fa-robot';
         const time = new Date().toLocaleTimeString();
         
         let contextInfo = '';
         if (metadata.contextUsed) {
-            contextInfo = `<div class="context-info">📚 Used ${metadata.sources} document(s)</div>`;
-        }
-        
-        // Add rate limiting indicator for system messages
-        let systemIcon = '';
-        if (metadata.isSystemMessage) {
-            systemIcon = '<i class="fas fa-clock system-icon"></i>';
+            contextInfo = `<div class="context-info">
+                <i class="fas fa-file-alt"></i>
+                Referenced ${metadata.sources} document${metadata.sources > 1 ? 's' : ''}
+            </div>`;
         }
         
         messageDiv.innerHTML = `
@@ -462,270 +188,241 @@ class ChatbotApp {
                 <i class="${avatar}"></i>
             </div>
             <div class="message-content">
-                ${systemIcon}
-                <p>${this.formatMessage(text)}</p>
+                <div class="message-text">${this.formatMessage(text)}</div>
                 ${contextInfo}
                 <div class="message-time">${time}</div>
             </div>
         `;
         
         this.chatMessages.appendChild(messageDiv);
-        this.scrollToBottom();
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        
+        // Add animation
+        setTimeout(() => {
+            messageDiv.classList.add('message-appear');
+        }, 100);
     }
 
     formatMessage(text) {
-        // Enhanced text formatting
+        // Convert markdown-style formatting to HTML
         return text
-            .replace(/\n/g, '<br>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/⚠️/g, '<span class="warning-icon">⚠️</span>')
-            .replace(/🙏/g, '<span class="emoji">🙏</span>')
-            .replace(/📚/g, '<span class="emoji">📚</span>')
-            .replace(/⏳/g, '<span class="emoji">⏳</span>');
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            .replace(/\n/g, '<br>');
     }
 
     showTypingIndicator() {
-        this.typingIndicator.style.display = 'flex';
-        this.scrollToBottom();
+        if (this.typingIndicator) {
+            this.typingIndicator.style.display = 'flex';
+            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        }
     }
 
     hideTypingIndicator() {
-        this.typingIndicator.style.display = 'none';
+        if (this.typingIndicator) {
+            this.typingIndicator.style.display = 'none';
+        }
     }
 
     setInputState(enabled) {
         this.chatInput.disabled = !enabled;
-        this.sendButton.disabled = !enabled || this.messageQueue.length > 0;
+        this.sendButton.disabled = !enabled;
         
-        if (!enabled || this.messageQueue.length > 0) {
-            this.sendButton.innerHTML = '<i class="fas fa-clock"></i>';
-            this.chatInput.placeholder = this.messageQueue.length > 0 ? 
-                `Processing ${this.messageQueue.length} queued message(s)...` :
-                'Please wait...';
-        } else {
+        if (enabled) {
+            this.chatInput.focus();
             this.sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
-            this.chatInput.placeholder = 'Type your message...';
+        } else {
+            this.sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         }
     }
 
     updateCharCounter() {
-        const length = this.chatInput.value.length;
-        this.charCounter.textContent = `${length}/500`;
-        
-        if (length > 450) {
-            this.charCounter.style.color = 'var(--error-color)';
-        } else if (length > 400) {
-            this.charCounter.style.color = 'var(--warning-color)';
-        } else {
-            this.charCounter.style.color = 'var(--text-secondary)';
-        }
-    }
-
-    scrollToBottom() {
-        setTimeout(() => {
-            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-        }, 100);
-    }
-
-    clearChatHistory() {
-        if (confirm('Are you sure you want to clear the chat history?')) {
-            // Keep only the welcome message
-            const welcomeMessage = this.chatMessages.querySelector('.welcome-message');
-            this.chatMessages.innerHTML = '';
-            if (welcomeMessage) {
-                this.chatMessages.appendChild(welcomeMessage);
-            }
-            this.showToast('Chat history cleared', 'success');
-        }
-    }
-
-    exportChatHistory() {
-        const messages = Array.from(this.chatMessages.querySelectorAll('.message:not(.welcome-message)'));
-        if (messages.length === 0) {
-            this.showToast('No messages to export', 'warning');
-            return;
-        }
-
-        let exportText = 'AI Support Chat Export\n';
-        exportText += '========================\n\n';
-
-        messages.forEach(msg => {
-            const isUser = msg.classList.contains('user-message');
-            const content = msg.querySelector('.message-content p').textContent;
-            const time = msg.querySelector('.message-time').textContent;
+        if (this.charCounter) {
+            const length = this.chatInput.value.length;
+            const maxLength = 1000;
+            this.charCounter.textContent = `${length}/${maxLength}`;
             
-            exportText += `${isUser ? 'You' : 'AI'} (${time}):\n${content}\n\n`;
-        });
+            if (length > maxLength * 0.8) {
+                this.charCounter.style.color = '#ff6b6b';
+            } else {
+                this.charCounter.style.color = '#6c757d';
+            }
+        }
+    }
 
-        const blob = new Blob([exportText], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `chat-export-${new Date().toISOString().split('T')[0]}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
+    // File Upload Functions - Simplified
+    handleFileSelect(event) {
+        const files = Array.from(event.target.files);
+        this.uploadFiles(files);
+    }
 
-        this.showToast('Chat exported successfully', 'success');
+    handleDragOver(event) {
+        event.preventDefault();
+        this.uploadArea.classList.add('drag-over');
+    }
+
+    handleDragLeave(event) {
+        event.preventDefault();
+        this.uploadArea.classList.remove('drag-over');
+    }
+
+    handleDrop(event) {
+        event.preventDefault();
+        this.uploadArea.classList.remove('drag-over');
+        
+        const files = Array.from(event.dataTransfer.files);
+        this.uploadFiles(files);
+    }
+
+    async uploadFiles(files) {
+        if (!files.length) return;
+
+        this.showLoadingOverlay();
+        this.showProgress(0);
+
+        const formData = new FormData();
+        files.forEach(file => formData.append('files', file));
+
+        try {
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                this.showToast(`Successfully processed ${result.files.length} files`, 'success');
+                this.loadDocuments();
+            } else {
+                throw new Error(result.error || 'Upload failed');
+            }
+
+        } catch (error) {
+            console.error('Upload error:', error);
+            this.showToast(`Upload failed: ${error.message}`, 'error');
+        } finally {
+            this.hideLoadingOverlay();
+        }
+    }
+
+    showProgress(percent) {
+        if (this.uploadProgress) {
+            this.uploadProgress.style.display = 'block';
+            this.progressFill.style.width = `${percent}%`;
+            
+            if (this.progressText) {
+                this.progressText.textContent = `${Math.round(percent)}%`;
+            }
+        }
+    }
+
+    hideProgress() {
+        if (this.uploadProgress) {
+            this.uploadProgress.style.display = 'none';
+        }
     }
 
     // Document Management
     async loadDocuments() {
         try {
             const response = await fetch('/documents');
-            const result = await response.json();
+            const data = await response.json();
 
             if (response.ok) {
-                this.displayDocuments(result.documents);
+                this.displayDocuments(data.documents);
             } else {
-                console.error('Failed to load documents:', result.error);
+                console.error('Failed to load documents:', data.error);
             }
+
         } catch (error) {
             console.error('Error loading documents:', error);
         }
     }
 
     displayDocuments(documents) {
-        if (!documents || documents.length === 0) {
-            this.documentsList.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-folder-open"></i>
-                    <p>No documents uploaded yet</p>
-                </div>
-            `;
+        if (!this.documentsList) return;
+
+        if (documents.length === 0) {
+            this.documentsList.innerHTML = '<p class="no-documents">No documents uploaded yet</p>';
             return;
         }
 
-        this.documentsList.innerHTML = '';
-        documents.forEach(doc => {
-            const docElement = this.createDocumentElement(doc);
-            this.documentsList.appendChild(docElement);
-        });
-    }
-
-    createDocumentElement(doc) {
-        const div = document.createElement('div');
-        div.className = 'document-item';
-        
-        div.innerHTML = `
-            <div class="document-info">
-                <h4>${doc.filename}</h4>
-                <div class="document-meta">${doc.chunks} chunks • ${doc.sample_text}</div>
-            </div>
-            <div class="document-actions">
-                <button class="btn btn-danger" onclick="app.deleteDocument('${doc.filename}')">
+        this.documentsList.innerHTML = documents.map(doc => `
+            <div class="document-item">
+                <div class="document-info">
+                    <h4>${doc.filename}</h4>
+                    <p>${doc.chunks} chunks</p>
+                    <small>${doc.sample_text}</small>
+                </div>
+                <button class="delete-btn" onclick="app.deleteDocument('${doc.filename}')">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
-        `;
-        
-        return div;
+        `).join('');
     }
 
     async deleteDocument(filename) {
-        if (!confirm(`Delete ${filename}?`)) return;
+        if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
 
         try {
-            const response = await fetch(`/documents/${encodeURIComponent(filename)}`, {
+            const response = await fetch(`/documents/${filename}`, {
                 method: 'DELETE'
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                this.loadDocuments();
                 this.showToast(result.message, 'success');
+                this.loadDocuments();
             } else {
-                throw new Error(result.error);
+                throw new Error(result.error || 'Delete failed');
             }
+
         } catch (error) {
             console.error('Delete error:', error);
-            this.showToast(`Failed to delete: ${error.message}`, 'error');
-        }
-    }
-
-    async clearAllDocuments() {
-        if (!confirm('Clear all documents and chat history?')) return;
-
-        this.showLoading();
-
-        try {
-            const response = await fetch('/clear', {
-                method: 'POST'
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                this.loadDocuments();
-                this.clearChatHistory();
-                this.uploadedFiles.innerHTML = '';
-                this.showToast(result.message, 'success');
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            console.error('Clear error:', error);
-            this.showToast(`Failed to clear: ${error.message}`, 'error');
-        }
-
-        this.hideLoading();
-    }
-
-    // System Health Check
-    async checkSystemHealth() {
-        try {
-            const response = await fetch('/health');
-            const result = await response.json();
-
-            if (response.ok) {
-                this.showToast(`System healthy • ${result.documents_count} documents loaded`, 'success');
-            } else {
-                this.showToast('System check failed', 'error');
-            }
-        } catch (error) {
-            this.showToast('Cannot connect to server', 'error');
+            this.showToast(`Delete failed: ${error.message}`, 'error');
         }
     }
 
     // Utility Functions
     showToast(message, type = 'info') {
         const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
-        };
-        
+        toast.className = `toast toast-${type}`;
         toast.innerHTML = `
             <div class="toast-content">
-                <i class="toast-icon ${icons[type]}"></i>
+                <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info'}"></i>
                 <span>${message}</span>
             </div>
         `;
-        
+
         this.toastContainer.appendChild(toast);
-        
-        // Auto remove after 5 seconds
+
         setTimeout(() => {
-            if (toast.parentNode) {
-                toast.classList.add('fade-out');
-                setTimeout(() => {
-                    toast.remove();
-                }, 300);
-            }
-        }, 5000);
+            toast.classList.add('show');
+        }, 100);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
     }
 
-    showLoading() {
-        this.loadingOverlay.style.display = 'flex';
+    showLoadingOverlay() {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.style.display = 'flex';
+        }
     }
 
-    hideLoading() {
-        this.loadingOverlay.style.display = 'none';
+    hideLoadingOverlay() {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.style.display = 'none';
+        }
     }
 
     showModal(modal) {
@@ -735,7 +432,82 @@ class ChatbotApp {
 
     hideModal(modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = '';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Control Functions
+    async clearChatHistory() {
+        if (!confirm('Are you sure you want to clear the chat history?')) return;
+
+        this.chatMessages.innerHTML = '';
+        this.showToast('Chat history cleared', 'success');
+    }
+
+    async clearAllDocuments() {
+        if (!confirm('Are you sure you want to clear all documents and chat history?')) return;
+
+        try {
+            const response = await fetch('/clear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                this.showToast(result.message, 'success');
+                this.loadDocuments();
+                this.chatMessages.innerHTML = '';
+            } else {
+                throw new Error(result.error || 'Clear failed');
+            }
+
+        } catch (error) {
+            console.error('Clear error:', error);
+            this.showToast(`Clear failed: ${error.message}`, 'error');
+        }
+    }
+
+    exportChatHistory() {
+        const messages = Array.from(this.chatMessages.querySelectorAll('.message'));
+        const chatHistory = messages.map(msg => {
+            const isUser = msg.classList.contains('user-message');
+            const text = msg.querySelector('.message-text').textContent;
+            const time = msg.querySelector('.message-time').textContent;
+            return `${isUser ? 'You' : 'Bot'} (${time}): ${text}`;
+        }).join('\n\n');
+
+        const blob = new Blob([chatHistory], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat-history-${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        this.showToast('Chat history exported', 'success');
+    }
+
+    async checkSystemHealth() {
+        try {
+            const response = await fetch('/health');
+            const data = await response.json();
+
+            if (response.ok) {
+                this.showToast(
+                    `System Status: ${data.status.toUpperCase()} | Documents: ${data.documents_count} | Requests: ${data.rate_limit_status.requests_last_minute}/${data.rate_limit_status.limit}`,
+                    'success'
+                );
+            } else {
+                throw new Error(data.error || 'Health check failed');
+            }
+
+        } catch (error) {
+            console.error('Health check error:', error);
+            this.showToast(`Health check failed: ${error.message}`, 'error');
+        }
     }
 }
 
@@ -743,16 +515,3 @@ class ChatbotApp {
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ChatbotApp();
 });
-
-// Service Worker for PWA capabilities (optional)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js')
-            .then(registration => {
-                console.log('SW registered: ', registration);
-            })
-            .catch(registrationError => {
-                console.log('SW registration failed: ', registrationError);
-            });
-    });
-}
