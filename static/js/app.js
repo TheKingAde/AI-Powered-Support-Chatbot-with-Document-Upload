@@ -5,6 +5,16 @@ class ChatbotApp {
         this.bindEvents();
         this.loadDocuments();
         this.setupAnimations();
+        
+        // Rate limiting and debouncing
+        this.lastRequestTime = 0;
+        this.minRequestInterval = 2000; // 2 seconds between requests
+        this.requestDebounceTimer = null;
+        this.isRequestInProgress = false;
+        
+        // Message queue for when rate limited
+        this.messageQueue = [];
+        this.isProcessingQueue = false;
     }
 
     initializeElements() {
@@ -50,12 +60,12 @@ class ChatbotApp {
         this.uploadArea.addEventListener('dragleave', (e) => this.handleDragLeave(e));
         this.uploadArea.addEventListener('drop', (e) => this.handleDrop(e));
 
-        // Chat events
-        this.sendButton.addEventListener('click', () => this.sendMessage());
+        // Chat events with rate limiting
+        this.sendButton.addEventListener('click', () => this.handleSendMessage());
         this.chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                this.sendMessage();
+                this.handleSendMessage();
             }
         });
         this.chatInput.addEventListener('input', () => this.updateCharCounter());
@@ -101,8 +111,11 @@ class ChatbotApp {
             });
         }, observerOptions);
 
-        // Observe animatable elements
+        // Observe sections for animation
         document.querySelectorAll('.upload-card, .chat-card, .documents-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
             observer.observe(el);
         });
     }
@@ -283,14 +296,90 @@ class ChatbotApp {
     }
 
     // Chat Functionality
+    // Rate limiting check
+    canMakeRequest() {
+        const now = Date.now();
+        const timeSinceLastRequest = now - this.lastRequestTime;
+        return timeSinceLastRequest >= this.minRequestInterval && !this.isRequestInProgress;
+    }
+
+    // Debounced message sending
+    handleSendMessage() {
+        if (this.requestDebounceTimer) {
+            clearTimeout(this.requestDebounceTimer);
+        }
+
+        this.requestDebounceTimer = setTimeout(() => {
+            this.sendMessage();
+        }, 300); // 300ms debounce
+    }
+
+    // Enhanced message sending with queue
     async sendMessage() {
         const message = this.chatInput.value.trim();
-        if (!message || this.sendButton.disabled) return;
+        if (!message) return;
 
-        // Add user message to chat
+        // Check if we can make a request immediately
+        if (this.canMakeRequest()) {
+            await this.processMessage(message);
+        } else {
+            // Add to queue and show user feedback
+            this.messageQueue.push(message);
+            this.showQueuedMessage(message);
+            this.processQueue();
+        }
+    }
+
+    showQueuedMessage(message) {
         this.addMessage(message, 'user');
         this.chatInput.value = '';
         this.updateCharCounter();
+        
+        this.addMessage(
+            "⏳ Your message is queued. I'll respond in a moment to avoid rate limits...", 
+            'bot',
+            { isSystemMessage: true }
+        );
+    }
+
+    async processQueue() {
+        if (this.isProcessingQueue || this.messageQueue.length === 0) return;
+        
+        this.isProcessingQueue = true;
+        
+        while (this.messageQueue.length > 0 && this.canMakeRequest()) {
+            const message = this.messageQueue.shift();
+            await this.processMessage(message, true); // Skip adding user message since it's already added
+            
+            // Wait between requests to respect rate limits
+            if (this.messageQueue.length > 0) {
+                await this.sleep(this.minRequestInterval);
+            }
+        }
+        
+        this.isProcessingQueue = false;
+        
+        // If there are still messages in queue, schedule next processing
+        if (this.messageQueue.length > 0) {
+            setTimeout(() => this.processQueue(), this.minRequestInterval);
+        }
+    }
+
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async processMessage(message, skipUserMessage = false) {
+        if (!skipUserMessage) {
+            // Add user message to chat
+            this.addMessage(message, 'user');
+            this.chatInput.value = '';
+            this.updateCharCounter();
+        }
+        
+        // Set request state
+        this.isRequestInProgress = true;
+        this.lastRequestTime = Date.now();
         
         // Disable input and show typing indicator
         this.setInputState(false);
@@ -323,17 +412,36 @@ class ChatbotApp {
         } catch (error) {
             console.error('Chat error:', error);
             this.hideTypingIndicator();
-            this.addMessage('Sorry, I encountered an error. Please try again.', 'bot');
-            this.showToast(`Chat error: ${error.message}`, 'error');
+            
+            // Enhanced error handling for rate limits
+            if (error.message.includes('429') || error.message.includes('rate')) {
+                this.addMessage(
+                    '⚠️ I\'m experiencing high usage right now. Your message has been queued and I\'ll respond shortly. Thanks for your patience!', 
+                    'bot',
+                    { isSystemMessage: true }
+                );
+                // Re-queue the message
+                this.messageQueue.unshift(message);
+            } else {
+                this.addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                this.showToast(`Chat error: ${error.message}`, 'error');
+            }
+        } finally {
+            // Re-enable input
+            this.isRequestInProgress = false;
+            this.setInputState(true);
         }
-
-        // Re-enable input
-        this.setInputState(true);
     }
 
     addMessage(text, sender, metadata = {}) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${sender}-message`;
+        let messageClass = `message ${sender}-message`;
+        
+        if (metadata.isSystemMessage) {
+            messageClass += ' system-message';
+        }
+        
+        messageDiv.className = messageClass;
         
         const avatar = sender === 'user' ? 'fas fa-user' : 'fas fa-robot';
         const time = new Date().toLocaleTimeString();
@@ -343,11 +451,18 @@ class ChatbotApp {
             contextInfo = `<div class="context-info">📚 Used ${metadata.sources} document(s)</div>`;
         }
         
+        // Add rate limiting indicator for system messages
+        let systemIcon = '';
+        if (metadata.isSystemMessage) {
+            systemIcon = '<i class="fas fa-clock system-icon"></i>';
+        }
+        
         messageDiv.innerHTML = `
             <div class="message-avatar">
                 <i class="${avatar}"></i>
             </div>
             <div class="message-content">
+                ${systemIcon}
                 <p>${this.formatMessage(text)}</p>
                 ${contextInfo}
                 <div class="message-time">${time}</div>
@@ -359,11 +474,15 @@ class ChatbotApp {
     }
 
     formatMessage(text) {
-        // Simple text formatting
+        // Enhanced text formatting
         return text
             .replace(/\n/g, '<br>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/⚠️/g, '<span class="warning-icon">⚠️</span>')
+            .replace(/🙏/g, '<span class="emoji">🙏</span>')
+            .replace(/📚/g, '<span class="emoji">📚</span>')
+            .replace(/⏳/g, '<span class="emoji">⏳</span>');
     }
 
     showTypingIndicator() {
@@ -377,9 +496,16 @@ class ChatbotApp {
 
     setInputState(enabled) {
         this.chatInput.disabled = !enabled;
-        this.sendButton.disabled = !enabled;
-        if (enabled) {
-            this.chatInput.focus();
+        this.sendButton.disabled = !enabled || this.messageQueue.length > 0;
+        
+        if (!enabled || this.messageQueue.length > 0) {
+            this.sendButton.innerHTML = '<i class="fas fa-clock"></i>';
+            this.chatInput.placeholder = this.messageQueue.length > 0 ? 
+                `Processing ${this.messageQueue.length} queued message(s)...` :
+                'Please wait...';
+        } else {
+            this.sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
+            this.chatInput.placeholder = 'Type your message...';
         }
     }
 
