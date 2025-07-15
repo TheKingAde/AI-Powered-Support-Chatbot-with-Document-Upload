@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 from services.file_processor import FileProcessor
 from services.ai_service import AIService
-from services.vector_store import VectorStore
+# Note: vector_store is kept for potential future use but not used in main flow
 
 # Load environment variables
 load_dotenv()
@@ -37,7 +37,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # Initialize services
 file_processor = FileProcessor()
 ai_service = AIService()
-vector_store = VectorStore()
+# vector_store = VectorStore()  # Commented out for simplified flow
 
 # Simple rate limiting - just track requests per minute per IP
 request_tracking = {}
@@ -81,26 +81,28 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
-    """Handle multiple file uploads and process them"""
+    """Handle file uploads - simplified without chunking and embedding"""
     try:
-        # Get client IP for rate limiting
+        # Get client IP for basic rate limiting
         client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
         
-        # Simple rate limiting check
-        if not simple_rate_limit_check(client_ip, max_requests=30):  # 30 uploads per minute
+        # Simple rate limiting check - 10 uploads per minute
+        if not simple_rate_limit_check(client_ip, max_requests=10):
             return jsonify({
-                'error': 'Too many upload requests. Please wait a moment and try again.'
+                'error': 'Too many uploads. Please wait a moment and try again.'
             }), 429
         
+        # Check if files were uploaded
         if 'files' not in request.files:
-            return jsonify({'error': 'No files selected'}), 400
+            return jsonify({'error': 'No files uploaded'}), 400
         
         files = request.files.getlist('files')
-        if not files or all(file.filename == '' for file in files):
+        
+        if not files or files[0].filename == '':
             return jsonify({'error': 'No files selected'}), 400
         
         processed_files = []
-        total_chunks = 0
+        combined_content = ""
         
         for file in files:
             if file and allowed_file(file.filename):
@@ -118,22 +120,16 @@ def upload_files():
                     text_content = file_processor.process_file(filepath)
                     
                     if text_content:
-                        # Create chunks and embeddings
-                        chunks = file_processor.create_text_chunks(text_content)
-                        embeddings = ai_service.create_embeddings(chunks)
-                        
-                        # Store in vector database
-                        vector_store.add_documents(chunks, embeddings, filename)
+                        # Simply store the full content
+                        combined_content += f"\n\n--- Content from {file.filename} ---\n{text_content}"
                         
                         processed_files.append({
                             'filename': file.filename,
                             'processed_filename': filename,
-                            'chunks': len(chunks),
                             'status': 'success'
                         })
-                        total_chunks += len(chunks)
                         
-                        logger.info(f"Successfully processed {filename}: {len(chunks)} chunks")
+                        logger.info(f"Successfully processed {filename}")
                     else:
                         processed_files.append({
                             'filename': file.filename,
@@ -161,10 +157,12 @@ def upload_files():
                     'message': 'File type not supported'
                 })
         
+        # Store combined content in session
+        session['file_content'] = combined_content.strip()
+        
         return jsonify({
             'message': f'Processed {len([f for f in processed_files if f["status"] == "success"])} files successfully',
-            'files': processed_files,
-            'total_chunks': total_chunks
+            'files': processed_files
         })
         
     except Exception as e:
@@ -173,7 +171,7 @@ def upload_files():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Handle chat messages - simplified without complex rate limiting"""
+    """Handle chat messages - simplified without chunking and embedding"""
     try:
         # Get client IP for basic rate limiting
         client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
@@ -198,13 +196,15 @@ def chat():
         if 'chat_history' not in session:
             session['chat_history'] = []
         
-        # Get relevant context from uploaded documents
-        relevant_context = vector_store.search_similar(user_message, top_k=3)
+        # Get file content if available (simplified - no chunking/embedding)
+        file_content = ""
+        if 'file_content' in session:
+            file_content = session['file_content']
         
-        # Generate AI response
-        response = ai_service.generate_response(
+        # Generate AI response directly with file content
+        response = ai_service.generate_simple_response(
             user_message, 
-            relevant_context, 
+            file_content,
             session['chat_history']
         )
         
@@ -221,8 +221,8 @@ def chat():
         
         return jsonify({
             'response': response,
-            'context_used': len(relevant_context) > 0,
-            'sources': len(relevant_context)
+            'has_file_content': bool(file_content),
+            'history_length': len(session['chat_history'])
         })
         
     except Exception as e:
@@ -238,69 +238,41 @@ def chat():
         
         return jsonify({'error': 'Sorry, I encountered an error. Please try again.'}), 500
 
-@app.route('/documents', methods=['GET'])
-def get_documents():
-    """Get list of uploaded documents"""
-    try:
-        documents = vector_store.get_all_documents()
-        return jsonify({'documents': documents})
-    except Exception as e:
-        logger.error(f"Error getting documents: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/documents/<filename>', methods=['DELETE'])
-def delete_document(filename):
-    """Delete a specific document from the vector store"""
-    try:
-        success = vector_store.delete_document(filename)
-        if success:
-            return jsonify({'message': f'Document {filename} deleted successfully'})
-        else:
-            return jsonify({'error': 'Document not found'}), 404
-    except Exception as e:
-        logger.error(f"Error deleting document: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/clear', methods=['POST'])
 def clear_data():
-    """Clear all uploaded documents and chat history"""
+    """Clear file content and chat history"""
     try:
-        vector_store.clear_all()
         ai_service.clear_cache()
         session.clear()
-        return jsonify({'message': 'All data cleared successfully'})
+        return jsonify({'message': 'Chat history and file content cleared successfully'})
     except Exception as e:
         logger.error(f"Error clearing data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/status', methods=['GET'])
+def get_status():
+    """Get current chat status"""
+    try:
+        return jsonify({
+            'has_file_content': 'file_content' in session and bool(session['file_content']),
+            'chat_history_length': len(session.get('chat_history', [])),
+            'session_active': bool(session)
+        })
+    except Exception as e:
+        logger.error(f"Error getting status: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    try:
-        documents_count = len(vector_store.get_all_documents())
-        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
-        
-        # Get rate limit status
-        current_time = time.time()
-        recent_requests = 0
-        if client_ip in request_tracking:
-            recent_requests = len([
-                ts for ts in request_tracking[client_ip]
-                if current_time - ts < 60
-            ])
-        
-        return jsonify({
-            'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
-            'documents_count': documents_count,
-            'rate_limit_status': {
-                'requests_last_minute': recent_requests,
-                'limit': 60
-            }
-        })
-    except Exception as e:
-        logger.error(f"Health check error: {str(e)}")
-        return jsonify({'status': 'error', 'error': str(e)}), 500
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'services': {
+            'file_processor': 'active',
+            'ai_service': 'active'
+        }
+    })
 
 @app.errorhandler(413)
 def too_large(e):
