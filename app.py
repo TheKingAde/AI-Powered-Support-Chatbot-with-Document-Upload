@@ -9,7 +9,6 @@ import logging
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import openai
 from dotenv import load_dotenv
 
 from services.file_processor import FileProcessor
