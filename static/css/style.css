@@ -354,6 +354,63 @@ body {
     margin-top: var(--spacing-2);
 }
 
+/* System Messages */
+.system-message {
+    opacity: 0.9;
+    border: 1px solid var(--warning-color);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+    margin: var(--spacing-3) 0;
+}
+
+.system-message .message-avatar {
+    background: var(--warning-color);
+    color: white;
+}
+
+.system-message .message-content {
+    background: rgba(245, 158, 11, 0.1);
+    border-left: 3px solid var(--warning-color);
+    position: relative;
+}
+
+.system-icon {
+    color: var(--warning-color);
+    margin-right: var(--spacing-2);
+    font-size: var(--font-size-sm);
+}
+
+/* Rate Limiting Indicators */
+.warning-icon {
+    color: var(--warning-color);
+    font-weight: bold;
+    text-shadow: 0 0 2px rgba(245, 158, 11, 0.3);
+}
+
+.emoji {
+    font-size: 1.1em;
+    margin: 0 2px;
+}
+
+/* Context Info */
+.context-info {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--success-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-2) var(--spacing-3);
+    margin-top: var(--spacing-2);
+    font-size: var(--font-size-sm);
+    color: var(--success-color);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.context-info::before {
+    content: "📚";
+    font-size: 1.1em;
+}
+
 .welcome-message {
     animation: welcomeMessage 1s ease-out;
 }
