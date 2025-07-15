@@ -1,10 +1,8 @@
-# Cursor AI Prompt: Build AI-Powered Support Chatbot with Document Upload
+# AI-Powered Support Chatbot with Document Upload
 
 ## Project Overview
 
-Build a **modern, fullstack AI-powered support chatbot** web application that allows users to upload various types of documents (PDF, XLSX, CSV, images, and more) to train/customize the chatbot’s knowledge base. The chatbot should integrate with the **OpenAI API** to provide smart, human-like answers based on uploaded content or predefined FAQs.
-
-This project showcases expertise in **NLP, API integration, file processing, and frontend UX/UI with animations**—a strong portfolio piece.
+Web application that allows users to upload various types of documents (PDF, XLSX, CSV, images, and more) to train/customize the chatbot’s knowledge base. The chatbot integrates with the **OpenAI API** to provide smart, human-like answers based on uploaded content or predefined FAQs.
 
 ---
 
