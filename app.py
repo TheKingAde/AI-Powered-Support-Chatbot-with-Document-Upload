@@ -39,8 +39,8 @@ file_processor = FileProcessor()
 ai_service = AIService()
 vector_store = VectorStore()
 
-# Server-side rate limiting for chat endpoint
-chat_rate_limits = {}  # IP -> list of timestamps
+# Simple rate limiting - just track requests per minute per IP
+request_tracking = {}
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {
@@ -48,26 +48,25 @@ ALLOWED_EXTENSIONS = {
     'jpg', 'jpeg', 'png', 'gif', 'bmp'
 }
 
-def check_chat_rate_limit(ip_address: str, max_requests: int = 5, window_minutes: int = 1) -> bool:
-    """Check if IP is within rate limits for chat requests"""
+def simple_rate_limit_check(ip_address: str, max_requests: int = 60) -> bool:
+    """Simple rate limiting - just track requests per minute"""
     current_time = time.time()
-    window_seconds = window_minutes * 60
     
-    if ip_address not in chat_rate_limits:
-        chat_rate_limits[ip_address] = []
+    if ip_address not in request_tracking:
+        request_tracking[ip_address] = []
     
     # Remove old requests outside the window
-    chat_rate_limits[ip_address] = [
-        timestamp for timestamp in chat_rate_limits[ip_address]
-        if current_time - timestamp < window_seconds
+    request_tracking[ip_address] = [
+        timestamp for timestamp in request_tracking[ip_address]
+        if current_time - timestamp < 60  # 1 minute window
     ]
     
     # Check if under limit
-    if len(chat_rate_limits[ip_address]) >= max_requests:
+    if len(request_tracking[ip_address]) >= max_requests:
         return False
     
     # Add current request
-    chat_rate_limits[ip_address].append(current_time)
+    request_tracking[ip_address].append(current_time)
     return True
 
 def allowed_file(filename):
@@ -84,6 +83,15 @@ def index():
 def upload_files():
     """Handle multiple file uploads and process them"""
     try:
+        # Get client IP for rate limiting
+        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+        
+        # Simple rate limiting check
+        if not simple_rate_limit_check(client_ip, max_requests=30):  # 30 uploads per minute
+            return jsonify({
+                'error': 'Too many upload requests. Please wait a moment and try again.'
+            }), 429
+        
         if 'files' not in request.files:
             return jsonify({'error': 'No files selected'}), 400
         
@@ -165,16 +173,15 @@ def upload_files():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Handle chat messages with rate limiting and enhanced error handling"""
+    """Handle chat messages - simplified without complex rate limiting"""
     try:
-        # Get client IP for rate limiting
+        # Get client IP for basic rate limiting
         client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
         
-        # Check server-side rate limit
-        if not check_chat_rate_limit(client_ip):
+        # Simple rate limiting check - 60 requests per minute
+        if not simple_rate_limit_check(client_ip, max_requests=60):
             return jsonify({
-                'error': 'Rate limit exceeded. Please wait a moment before sending another message.',
-                'retry_after': 60
+                'error': 'Too many requests. Please wait a moment and try again.'
             }), 429
         
         data = request.json
@@ -183,9 +190,9 @@ def chat():
         if not user_message:
             return jsonify({'error': 'Message cannot be empty'}), 400
         
-        # Limit message length to prevent token overuse
-        if len(user_message) > 500:
-            return jsonify({'error': 'Message too long. Please keep it under 500 characters.'}), 400
+        # Limit message length
+        if len(user_message) > 1000:
+            return jsonify({'error': 'Message too long. Please keep it under 1000 characters.'}), 400
         
         # Initialize chat history in session if not exists
         if 'chat_history' not in session:
@@ -201,30 +208,22 @@ def chat():
             session['chat_history']
         )
         
-        # Update chat history (keep it shorter to save memory)
+        # Update chat history (keep it manageable)
         session['chat_history'].append({
             'user': user_message,
             'bot': response,
             'timestamp': datetime.now().isoformat()
         })
         
-        # Keep only last 5 exchanges to prevent session from growing too large
-        if len(session['chat_history']) > 5:
-            session['chat_history'] = session['chat_history'][-5:]
+        # Keep only last 10 exchanges
+        if len(session['chat_history']) > 10:
+            session['chat_history'] = session['chat_history'][-10:]
         
         return jsonify({
             'response': response,
             'context_used': len(relevant_context) > 0,
             'sources': len(relevant_context)
         })
-        
-    except openai.RateLimitError as e:
-        logger.warning(f"OpenAI rate limit exceeded: {str(e)}")
-        return jsonify({
-            'error': 'API rate limit exceeded. Please wait a moment and try again.',
-            'retry_after': 60,
-            'is_rate_limit': True
-        }), 429
         
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")
@@ -267,7 +266,7 @@ def clear_data():
     """Clear all uploaded documents and chat history"""
     try:
         vector_store.clear_all()
-        ai_service.clear_cache()  # Clear AI service caches
+        ai_service.clear_cache()
         session.clear()
         return jsonify({'message': 'All data cleared successfully'})
     except Exception as e:
@@ -276,7 +275,7 @@ def clear_data():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint with rate limit status"""
+    """Health check endpoint"""
     try:
         documents_count = len(vector_store.get_all_documents())
         client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
@@ -284,9 +283,9 @@ def health_check():
         # Get rate limit status
         current_time = time.time()
         recent_requests = 0
-        if client_ip in chat_rate_limits:
+        if client_ip in request_tracking:
             recent_requests = len([
-                ts for ts in chat_rate_limits[client_ip]
+                ts for ts in request_tracking[client_ip]
                 if current_time - ts < 60
             ])
         
@@ -296,7 +295,7 @@ def health_check():
             'documents_count': documents_count,
             'rate_limit_status': {
                 'requests_last_minute': recent_requests,
-                'limit': 5
+                'limit': 60
             }
         })
     except Exception as e:
