@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Support Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                <h1>AI Support Assistant</h1>
+            </div>
+            <p class="subtitle">Upload documents and chat with your AI-powered assistant</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <div class="upload-card">
+                    <div class="upload-header">
+                        <h2>
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            Upload Documents
+                        </h2>
+                        <p>Drag & drop files or click to browse</p>
+                    </div>
+                    
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <div class="upload-text">
+                            <h3>Drop files here or click to upload</h3>
+                            <p>Supports: PDF, DOCX, XLSX, CSV, TXT, Images (JPG, PNG, etc.)</p>
+                            <p class="upload-limit">Max file size: 50MB</p>
+                        </div>
+                        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.xlsx,.xls,.csv,.txt,.jpg,.jpeg,.png,.gif,.bmp">
+                    </div>
+
+                    <div class="upload-progress" id="uploadProgress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p class="progress-text" id="progressText">Processing files...</p>
+                    </div>
+
+                    <div class="uploaded-files" id="uploadedFiles"></div>
+                </div>
+            </section>
+
+            <!-- Chat Section -->
+            <section class="chat-section">
+                <div class="chat-card">
+                    <div class="chat-header">
+                        <h2>
+                            <i class="fas fa-comments"></i>
+                            Chat Assistant
+                        </h2>
+                        <div class="chat-controls">
+                            <button id="clearChat" class="btn btn-secondary" title="Clear Chat">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button id="exportChat" class="btn btn-secondary" title="Export Chat">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="chat-container" id="chatContainer">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="message bot-message welcome-message">
+                                <div class="message-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="message-content">
+                                    <p>Hello! I'm your AI assistant. Upload some documents to get started, or ask me any questions!</p>
+                                    <div class="message-time">Just now</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                            <div class="typing-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <span class="typing-text">AI is typing...</span>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-container">
+                        <div class="chat-input-wrapper">
+                            <input type="text" id="chatInput" placeholder="Type your message..." maxlength="500">
+                            <button id="sendButton" class="send-button">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="input-counter">
+                            <span id="charCounter">0/500</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Document Management -->
+            <section class="documents-section">
+                <div class="documents-card">
+                    <div class="documents-header">
+                        <h2>
+                            <i class="fas fa-file-alt"></i>
+                            Uploaded Documents
+                        </h2>
+                        <button id="clearDocuments" class="btn btn-danger" title="Clear All Documents">
+                            <i class="fas fa-times"></i>
+                            Clear All
+                        </button>
+                    </div>
+                    <div class="documents-list" id="documentsList">
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open"></i>
+                            <p>No documents uploaded yet</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 AI Support Assistant. Powered by OpenAI.</p>
+            <div class="footer-links">
+                <a href="#" id="healthCheck">System Status</a>
+                <a href="#" id="aboutBtn">About</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="aboutModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>About AI Support Assistant</h3>
+                <button class="modal-close" id="closeAbout">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>This AI-powered chatbot can help you with questions based on your uploaded documents.</p>
+                <h4>Features:</h4>
+                <ul>
+                    <li>Multiple file format support (PDF, DOCX, XLSX, CSV, TXT, Images)</li>
+                    <li>OCR for image text extraction</li>
+                    <li>Context-aware AI responses</li>
+                    <li>Document-based knowledge retrieval</li>
+                </ul>
+                <h4>Supported File Types:</h4>
+                <div class="file-types">
+                    <span class="file-type">PDF</span>
+                    <span class="file-type">DOCX</span>
+                    <span class="file-type">XLSX</span>
+                    <span class="file-type">CSV</span>
+                    <span class="file-type">TXT</span>
+                    <span class="file-type">JPG/PNG</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
