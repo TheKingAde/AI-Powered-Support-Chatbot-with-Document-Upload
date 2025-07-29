@@ -7,15 +7,67 @@ import logging
 import secrets
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
+from PyPDF2 import PdfReader
+from docx import Document
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import FAISS
+from langchain.embeddings import OpenAIEmbeddings  # Or another provider
+import os
+import tempfile
+from langchain.vectorstores import FAISS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(32)
+app.secret_key = "60b87d3fedd53dbc74980946548d21a0695240580fafc5e972a7388284fd14c3"
 # Enable CORS
 CORS(app)
+
+EMBEDDING_MODEL = OpenAIEmbeddings()  # Swap if needed
+VECTOR_DB_PATH = "./vector_db"
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    filename = file.filename.lower()
+
+    if not filename.endswith(('.pdf', '.txt', '.docx')):
+        return jsonify({'error': 'Unsupported file type'}), 400
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        file.save(tmp.name)
+        file_path = tmp.name
+
+    try:
+        # Extract text
+        if filename.endswith('.pdf'):
+            reader = PdfReader(file_path)
+            text = "\n".join([page.extract_text() or "" for page in reader.pages])
+        elif filename.endswith('.docx'):
+            doc = Document(file_path)
+            text = "\n".join([p.text for p in doc.paragraphs])
+        else:  # .txt
+            text = open(file_path, encoding='utf-8').read()
+
+        # Chunk text
+        splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        texts = splitter.create_documents([text])
+
+        # Create vector store
+        vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+        vectorstore.save_local(VECTOR_DB_PATH)
+
+        return jsonify({'message': 'File processed and embedded successfully.'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        os.remove(file_path)
+
 
 # Providers and models
 ai_chats = [
@@ -44,10 +96,7 @@ def send_ai_request(prompt):
         time.sleep(2)
         try:
             # 🧠 Construct chat history with roles
-            chat_history = session.get('chat_history', [])
-            messages = [{"role": "user", "content": m['user']} for m in chat_history]
-            messages += [{"role": "assistant", "content": m['bot']} for m in chat_history]
-            messages.append({"role": "user", "content": prompt})
+            messages = prompt
 
             kwargs = {
                 "provider": current_chat["provider"],
@@ -88,7 +137,6 @@ def chat():
     try:
         data = request.json
         user_message = data.get('message', '').strip()
-        
         if not user_message:
             return jsonify({'error': 'Message cannot be empty'}), 400
         
@@ -106,6 +154,16 @@ def chat():
         for entry in chat_history:
             ai_messages.append({"role": "user", "content": entry["user"]})
             ai_messages.append({"role": "assistant", "content": entry["bot"]})
+            # Inside chat()
+            retrieved_docs = []
+            if os.path.exists(VECTOR_DB_PATH):
+                try:
+                    vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL)
+                    relevant = vectorstore.similarity_search(user_message, k=3)
+                    retrieved_docs = [doc.page_content for doc in relevant]
+                except Exception as e:
+                    logger.warning(f"RAG failed: {e}")
+            ai_messages.append({"role": "system", "content": "Relevant documents: " + "\n".join(retrieved_docs) if retrieved_docs else "No relevant documents found."})
 
         ai_messages.append({"role": "user", "content": user_message})
 
