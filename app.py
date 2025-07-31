@@ -10,11 +10,10 @@ from flask_cors import CORS
 from PyPDF2 import PdfReader
 from docx import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.embeddings import OpenAIEmbeddings  # Or another provider
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
 import os
 import tempfile
-from langchain.vectorstores import FAISS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +24,9 @@ app.secret_key = "60b87d3fedd53dbc74980946548d21a0695240580fafc5e972a7388284fd14
 # Enable CORS
 CORS(app)
 
-EMBEDDING_MODEL = OpenAIEmbeddings()  # Swap if needed
+EMBEDDING_MODEL = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
 VECTOR_DB_PATH = "./vector_db"
 
 @app.route('/upload', methods=['POST'])
