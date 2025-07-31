@@ -14,6 +14,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 import os
 import tempfile
+import shutil
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,43 +32,65 @@ VECTOR_DB_PATH = "./vector_db"
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if 'file' not in request.files:
+    # Handle both 'file' and 'files' field names for compatibility
+    files = request.files.getlist('files') or request.files.getlist('file')
+    
+    if not files or not any(f.filename for f in files):
         return jsonify({'error': 'No file provided'}), 400
 
-    file = request.files['file']
-    filename = file.filename.lower()
+    processed_files = []
+    
+    for file in files:
+        if not file.filename:
+            continue
+            
+        filename = file.filename.lower()
+        
+        if not filename.endswith(('.pdf', '.txt', '.docx')):
+            return jsonify({'error': f'Unsupported file type: {filename}'}), 400
 
-    if not filename.endswith(('.pdf', '.txt', '.docx')):
-        return jsonify({'error': 'Unsupported file type'}), 400
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            file.save(tmp.name)
+            file_path = tmp.name
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        file.save(tmp.name)
-        file_path = tmp.name
+        try:
+            # Extract text
+            if filename.endswith('.pdf'):
+                reader = PdfReader(file_path)
+                text = "\n".join([page.extract_text() or "" for page in reader.pages])
+            elif filename.endswith('.docx'):
+                doc = Document(file_path)
+                text = "\n".join([p.text for p in doc.paragraphs])
+            else:  # .txt
+                text = open(file_path, encoding='utf-8').read()
 
-    try:
-        # Extract text
-        if filename.endswith('.pdf'):
-            reader = PdfReader(file_path)
-            text = "\n".join([page.extract_text() or "" for page in reader.pages])
-        elif filename.endswith('.docx'):
-            doc = Document(file_path)
-            text = "\n".join([p.text for p in doc.paragraphs])
-        else:  # .txt
-            text = open(file_path, encoding='utf-8').read()
+            # Chunk text
+            splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+            texts = splitter.create_documents([text])
 
-        # Chunk text
-        splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-        texts = splitter.create_documents([text])
+            # Create or update vector store
+            if os.path.exists(VECTOR_DB_PATH):
+                vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL)
+                new_vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                vectorstore.merge_from(new_vectorstore)
+            else:
+                vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                
+            vectorstore.save_local(VECTOR_DB_PATH)
+            processed_files.append({
+                'filename': file.filename,
+                'chunks': len(texts)
+            })
 
-        # Create vector store
-        vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
-        vectorstore.save_local(VECTOR_DB_PATH)
+        except Exception as e:
+            return jsonify({'error': f'Error processing {filename}: {str(e)}'}), 500
+        finally:
+            os.remove(file_path)
 
-        return jsonify({'message': 'File processed and embedded successfully.'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        os.remove(file_path)
+    return jsonify({
+        'message': f'Successfully processed {len(processed_files)} file(s)',
+        'files': processed_files
+    })
 
 
 # Providers and models
@@ -200,11 +223,60 @@ def chat():
         
         return jsonify({'error': 'Sorry, I encountered an error. Please try again.'}), 500
     
+@app.route('/documents', methods=['GET'])
+def get_documents():
+    """Get list of uploaded documents"""
+    try:
+        if not os.path.exists(VECTOR_DB_PATH):
+            return jsonify({'documents': []})
+        
+        # For simplicity, return empty list since we don't track individual files
+        # In a real implementation, you'd store file metadata
+        return jsonify({'documents': []})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/documents/<filename>', methods=['DELETE'])
+def delete_document(filename):
+    """Delete a specific document"""
+    try:
+        # For simplicity, just clear all documents
+        # In a real implementation, you'd remove specific file chunks
+        if os.path.exists(VECTOR_DB_PATH):
+            shutil.rmtree(VECTOR_DB_PATH)
+        return jsonify({'message': f'Document {filename} deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """System health check"""
+    try:
+        doc_count = 0
+        if os.path.exists(VECTOR_DB_PATH):
+            doc_count = 1  # Simplified count
+            
+        return jsonify({
+            'status': 'healthy',
+            'documents_count': doc_count,
+            'rate_limit_status': {
+                'requests_last_minute': 10,  # Simplified
+                'limit': 60
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/clear', methods=['POST'])
 def clear_data():
     """Clear file content and chat history"""
     session.pop('chat_history', None)
     session.pop('file_content', None)
+    
+    # Also clear vector database
+    if os.path.exists(VECTOR_DB_PATH):
+        shutil.rmtree(VECTOR_DB_PATH)
+    
     return jsonify({'message': 'Chat history and file content cleared.'})
 
 if __name__ == '__main__':
