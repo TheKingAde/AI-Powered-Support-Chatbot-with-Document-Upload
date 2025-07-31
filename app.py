@@ -70,7 +70,7 @@ def upload():
 
             # Create or update vector store
             if os.path.exists(VECTOR_DB_PATH):
-                vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL)
+                vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
                 new_vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
                 vectorstore.merge_from(new_vectorstore)
             else:
@@ -182,7 +182,7 @@ def chat():
             retrieved_docs = []
             if os.path.exists(VECTOR_DB_PATH):
                 try:
-                    vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL)
+                    vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
                     relevant = vectorstore.similarity_search(user_message, k=3)
                     retrieved_docs = [doc.page_content for doc in relevant]
                 except Exception as e:
