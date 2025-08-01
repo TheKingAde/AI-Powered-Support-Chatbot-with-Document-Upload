@@ -15,6 +15,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import os
 import tempfile
 import shutil
+import json
+import uuid
+from typing import Dict, List, Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +32,120 @@ EMBEDDING_MODEL = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 VECTOR_DB_PATH = "./vector_db"
+METADATA_FILE = "./file_metadata.json"
+
+class FileMetadataManager:
+    """Manages file metadata and vector associations"""
+    
+    def __init__(self, metadata_file: str):
+        self.metadata_file = metadata_file
+        self.metadata = self._load_metadata()
+    
+    def _load_metadata(self) -> Dict:
+        """Load metadata from file"""
+        if os.path.exists(self.metadata_file):
+            try:
+                with open(self.metadata_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"Error loading metadata: {e}")
+        return {
+            'files': {},
+            'chunk_mappings': {},
+            'next_chunk_id': 0
+        }
+    
+    def _save_metadata(self):
+        """Save metadata to file"""
+        try:
+            with open(self.metadata_file, 'w') as f:
+                json.dump(self.metadata, f, indent=2)
+        except Exception as e:
+            logger.error(f"Error saving metadata: {e}")
+    
+    def add_file(self, filename: str, file_size: int, upload_date: str, 
+                 chunk_count: int, file_type: str) -> str:
+        """Add a new file to metadata"""
+        file_id = str(uuid.uuid4())
+        
+        self.metadata['files'][file_id] = {
+            'filename': filename,
+            'file_size': file_size,
+            'upload_date': upload_date,
+            'chunk_count': chunk_count,
+            'file_type': file_type,
+            'status': 'uploaded'
+        }
+        
+        self._save_metadata()
+        return file_id
+    
+    def add_chunk_mapping(self, file_id: str, chunk_text: str, chunk_index: int) -> int:
+        """Add a chunk mapping and return chunk ID"""
+        chunk_id = self.metadata['next_chunk_id']
+        self.metadata['next_chunk_id'] += 1
+        
+        self.metadata['chunk_mappings'][chunk_id] = {
+            'file_id': file_id,
+            'chunk_text': chunk_text,
+            'chunk_index': chunk_index
+        }
+        
+        self._save_metadata()
+        return chunk_id
+    
+    def get_file_metadata(self, file_id: str) -> Optional[Dict]:
+        """Get metadata for a specific file"""
+        return self.metadata['files'].get(file_id)
+    
+    def get_all_files(self) -> List[Dict]:
+        """Get metadata for all files"""
+        files = []
+        for file_id, metadata in self.metadata['files'].items():
+            file_info = metadata.copy()
+            file_info['file_id'] = file_id
+            files.append(file_info)
+        return files
+    
+    def get_file_chunks(self, file_id: str) -> List[int]:
+        """Get all chunk IDs for a specific file"""
+        chunk_ids = []
+        for chunk_id, mapping in self.metadata['chunk_mappings'].items():
+            if mapping['file_id'] == file_id:
+                chunk_ids.append(chunk_id)
+        return chunk_ids
+    
+    def delete_file(self, file_id: str) -> bool:
+        """Delete a file and all its chunks"""
+        if file_id not in self.metadata['files']:
+            return False
+        
+        # Remove file metadata
+        del self.metadata['files'][file_id]
+        
+        # Remove all chunks for this file
+        chunks_to_remove = []
+        for chunk_id, mapping in self.metadata['chunk_mappings'].items():
+            if mapping['file_id'] == file_id:
+                chunks_to_remove.append(chunk_id)
+        
+        for chunk_id in chunks_to_remove:
+            del self.metadata['chunk_mappings'][chunk_id]
+        
+        self._save_metadata()
+        return True
+    
+    def clear_all(self):
+        """Clear all metadata"""
+        self.metadata = {
+            'files': {},
+            'chunk_mappings': {},
+            'next_chunk_id': 0
+        }
+        self._save_metadata()
+
+# Initialize metadata manager
+metadata_manager = FileMetadataManager(METADATA_FILE)
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -68,6 +185,19 @@ def upload():
             splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
             texts = splitter.create_documents([text])
 
+            # Store file metadata
+            file_size = os.path.getsize(file_path)
+            upload_date = datetime.now().isoformat()
+            file_type = os.path.splitext(filename)[1].lower()
+            
+            file_id = metadata_manager.add_file(
+                filename=file.filename,
+                file_size=file_size,
+                upload_date=upload_date,
+                chunk_count=len(texts),
+                file_type=file_type
+            )
+
             # Create or update vector store
             if os.path.exists(VECTOR_DB_PATH):
                 vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
@@ -77,9 +207,17 @@ def upload():
                 vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
                 
             vectorstore.save_local(VECTOR_DB_PATH)
+            
+            # Store chunk mappings
+            for i, text_doc in enumerate(texts):
+                metadata_manager.add_chunk_mapping(file_id, text_doc.page_content, i)
+            
             processed_files.append({
                 'filename': file.filename,
-                'chunks': len(texts)
+                'chunks': len(texts),
+                'file_id': file_id,
+                'file_size': file_size,
+                'upload_date': upload_date
             })
 
         except Exception as e:
@@ -227,24 +365,54 @@ def chat():
 def get_documents():
     """Get list of uploaded documents"""
     try:
-        if not os.path.exists(VECTOR_DB_PATH):
-            return jsonify({'documents': []})
-        
-        # For simplicity, return empty list since we don't track individual files
-        # In a real implementation, you'd store file metadata
-        return jsonify({'documents': []})
+        files = metadata_manager.get_all_files()
+        return jsonify({'documents': files})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/documents/<filename>', methods=['DELETE'])
-def delete_document(filename):
-    """Delete a specific document"""
+@app.route('/documents/<file_id>', methods=['DELETE'])
+def delete_document(file_id):
+    """Delete a specific document and its chunks"""
     try:
-        # For simplicity, just clear all documents
-        # In a real implementation, you'd remove specific file chunks
+        # Get file metadata
+        file_metadata = metadata_manager.get_file_metadata(file_id)
+        if not file_metadata:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Delete from metadata
+        success = metadata_manager.delete_file(file_id)
+        if not success:
+            return jsonify({'error': 'Failed to delete file'}), 500
+        
+        # Rebuild vector store without the deleted chunks
         if os.path.exists(VECTOR_DB_PATH):
-            shutil.rmtree(VECTOR_DB_PATH)
-        return jsonify({'message': f'Document {filename} deleted successfully'})
+            try:
+                # Load existing vectorstore
+                vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
+                
+                # Get all remaining chunks from metadata
+                all_chunks = []
+                for chunk_id, mapping in metadata_manager.metadata['chunk_mappings'].items():
+                    all_chunks.append(mapping['chunk_text'])
+                
+                if all_chunks:
+                    # Create new vectorstore with remaining chunks
+                    new_vectorstore = FAISS.from_texts(all_chunks, EMBEDDING_MODEL)
+                    new_vectorstore.save_local(VECTOR_DB_PATH)
+                else:
+                    # No chunks left, remove vector store
+                    shutil.rmtree(VECTOR_DB_PATH)
+                    
+            except Exception as e:
+                logger.error(f"Error rebuilding vector store: {e}")
+                # If rebuilding fails, clear the vector store
+                if os.path.exists(VECTOR_DB_PATH):
+                    shutil.rmtree(VECTOR_DB_PATH)
+        
+        return jsonify({
+            'message': f'Document {file_metadata["filename"]} deleted successfully',
+            'deleted_file': file_metadata
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -252,13 +420,14 @@ def delete_document(filename):
 def health_check():
     """System health check"""
     try:
-        doc_count = 0
-        if os.path.exists(VECTOR_DB_PATH):
-            doc_count = 1  # Simplified count
-            
+        files = metadata_manager.get_all_files()
+        total_chunks = len(metadata_manager.metadata['chunk_mappings'])
+        
         return jsonify({
             'status': 'healthy',
-            'documents_count': doc_count,
+            'documents_count': len(files),
+            'total_chunks': total_chunks,
+            'files': [f['filename'] for f in files],
             'rate_limit_status': {
                 'requests_last_minute': 10,  # Simplified
                 'limit': 60
@@ -273,7 +442,10 @@ def clear_data():
     session.pop('chat_history', None)
     session.pop('file_content', None)
     
-    # Also clear vector database
+    # Clear metadata
+    metadata_manager.clear_all()
+    
+    # Clear vector database
     if os.path.exists(VECTOR_DB_PATH):
         shutil.rmtree(VECTOR_DB_PATH)
     

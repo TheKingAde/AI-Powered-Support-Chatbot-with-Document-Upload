@@ -345,29 +345,56 @@ class ChatbotApp {
         if (!this.documentsList) return;
 
         if (documents.length === 0) {
-            this.documentsList.innerHTML = '<p class="no-documents">No documents uploaded yet</p>';
+            this.documentsList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-folder-open"></i>
+                    <p>No documents uploaded yet</p>
+                </div>
+            `;
             return;
         }
 
-        this.documentsList.innerHTML = documents.map(doc => `
-            <div class="document-item">
-                <div class="document-info">
-                    <h4>${doc.filename}</h4>
-                    <p>${doc.chunks} chunks</p>
-                    <small>${doc.sample_text}</small>
+        this.documentsList.innerHTML = documents.map(doc => {
+            const uploadDate = new Date(doc.upload_date).toLocaleDateString();
+            const fileSize = this.formatFileSize(doc.file_size);
+            
+            return `
+                <div class="document-item" data-file-id="${doc.file_id}">
+                    <div class="document-info">
+                        <div class="document-header">
+                            <h4>${doc.filename}</h4>
+                            <span class="file-type">${doc.file_type.toUpperCase()}</span>
+                        </div>
+                        <div class="document-details">
+                            <p><i class="fas fa-layer-group"></i> ${doc.chunk_count} chunks</p>
+                            <p><i class="fas fa-weight-hanging"></i> ${fileSize}</p>
+                            <p><i class="fas fa-calendar"></i> ${uploadDate}</p>
+                        </div>
+                    </div>
+                    <div class="document-actions">
+                        <button class="delete-btn" onclick="app.deleteDocument('${doc.file_id}', '${doc.filename}')" title="Delete document">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
-                <button class="delete-btn" onclick="app.deleteDocument('${doc.filename}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
-    async deleteDocument(filename) {
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    async deleteDocument(fileId, filename) {
         if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
 
         try {
-            const response = await fetch(`/documents/${filename}`, {
+            this.showLoadingOverlay();
+            const response = await fetch(`/documents/${fileId}`, {
                 method: 'DELETE'
             });
 
@@ -383,6 +410,8 @@ class ChatbotApp {
         } catch (error) {
             console.error('Delete error:', error);
             this.showToast(`Delete failed: ${error.message}`, 'error');
+        } finally {
+            this.hideLoadingOverlay();
         }
     }
 

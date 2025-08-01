@@ -536,32 +536,99 @@ body {
 .document-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     padding: var(--spacing-4);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     margin-bottom: var(--spacing-3);
     transition: all var(--transition-normal);
     animation: slideIn 0.4s ease-out;
+    background: var(--background-color);
 }
 
 .document-item:hover {
     border-color: var(--primary-color);
     transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.document-info h4 {
-    margin-bottom: var(--spacing-1);
+.document-info {
+    flex: 1;
+    margin-right: var(--spacing-4);
 }
 
-.document-meta {
+.document-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-2);
+}
+
+.document-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: var(--font-size-base);
+}
+
+.file-type {
+    background: var(--primary-color);
+    color: white;
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.document-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+}
+
+.document-details p {
+    margin: 0;
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+.document-details i {
+    color: var(--primary-color);
+    width: 14px;
 }
 
 .document-actions {
     display: flex;
     gap: var(--spacing-2);
+    flex-shrink: 0;
+}
+
+.delete-btn {
+    background: var(--error-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-2);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+}
+
+.delete-btn:hover {
+    background: #dc2626;
+    transform: scale(1.05);
+}
+
+.delete-btn i {
+    font-size: var(--font-size-sm);
 }
 
 /* Buttons */
@@ -872,6 +939,31 @@ body {
         flex-direction: column;
         gap: var(--spacing-4);
         align-items: stretch;
+    }
+    
+    .document-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .document-info {
+        margin-right: 0;
+        margin-bottom: var(--spacing-3);
+    }
+    
+    .document-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-2);
+    }
+    
+    .document-details {
+        flex-direction: column;
+        gap: var(--spacing-2);
+    }
+    
+    .document-actions {
+        align-self: flex-end;
     }
     
     .toast-container {
