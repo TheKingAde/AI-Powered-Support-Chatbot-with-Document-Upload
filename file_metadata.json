@@ -1,20 +1,128 @@
 {
   "files": {
-    "bcf01159-7723-4b7b-960b-1159b5b02093": {
-      "filename": "test_document.txt",
-      "file_size": 77,
-      "upload_date": "2025-08-01T17:12:58.999160",
-      "chunk_count": 1,
+    "8fa44df0-8a61-453d-be6f-e9b9711cfa9c": {
+      "filename": "lextrustlaw.txt",
+      "file_size": 8112,
+      "upload_date": "2025-08-01T18:42:22.946740",
+      "chunk_count": 18,
+      "file_type": ".txt",
+      "status": "uploaded"
+    },
+    "d0499092-508d-448c-8365-6b4b81a4bf2e": {
+      "filename": "samplefaq.txt",
+      "file_size": 1055,
+      "upload_date": "2025-08-01T19:08:56.775075",
+      "chunk_count": 3,
       "file_type": ".txt",
       "status": "uploaded"
     }
   },
   "chunk_mappings": {
-    "0": {
-      "file_id": "bcf01159-7723-4b7b-960b-1159b5b02093",
-      "chunk_text": "This is a test document for testing the upload functionality after clearing.",
+    "139": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "LexTrust Legal Group - Frequently Asked Questions (FAQ)\n========================================================\n\nWelcome to the LexTrust Legal Group FAQ section. This document addresses our most common client inquiries. If your question isn\u2019t answered here, feel free to contact our support team at support@lextrustlaw.com.\n\n--------------------------------------------------------\nGENERAL INFORMATION\n--------------------------------------------------------",
       "chunk_index": 0
+    },
+    "140": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q1. What is LexTrust Legal Group?\nA: LexTrust Legal Group is a full-service law firm specializing in corporate law, real estate, intellectual property, family law, and litigation. We are committed to delivering high-quality legal solutions tailored to individual and business needs.\n\nQ2. Where are your offices located?\nA: Our head office is located in Lagos, Nigeria, with satellite offices in Abuja and Port Harcourt. We also serve international clients via virtual consultations.",
+      "chunk_index": 1
+    },
+    "141": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q3. What are your operating hours?\nA: We are open Monday to Friday from 8:30 AM to 6:00 PM WAT. Weekend consultations are available by appointment only.\n\nQ4. Do you offer virtual consultations?\nA: Yes, we offer consultations via Zoom, Google Meet, or Microsoft Teams. You can schedule one through our website or by calling our office.\n\nQ5. How do I book a consultation?\nA: Visit www.lextrustlaw.com/consultation or call +234-800-LEXTRUST. We require basic details and a preferred time slot.",
+      "chunk_index": 2
+    },
+    "142": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "--------------------------------------------------------\nLEGAL SERVICES\n--------------------------------------------------------\n\nQ6. What types of legal services do you offer?\nA:\n- Corporate & Commercial Law\n- Intellectual Property (IP) Registration and Enforcement\n- Property & Real Estate Law\n- Family & Matrimonial Law\n- Employment & Labour Law\n- Criminal Defence\n- Civil Litigation\n- Immigration & Visa Services\n- Regulatory Compliance",
+      "chunk_index": 3
+    },
+    "143": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q7. Do you help with business registration and incorporation?\nA: Absolutely. We assist with CAC registration, business name reservation, incorporation of companies, NGO registration, and post-incorporation filings.\n\nQ8. Can you help with intellectual property (IP) registration?\nA: Yes, we handle trademark, patent, and copyright registration in Nigeria and internationally. We also provide IP enforcement and licensing advisory.",
+      "chunk_index": 4
+    },
+    "144": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q9. Do you handle family law matters like divorce and custody?\nA: Yes, we handle divorce, separation, child custody and support, pre-nuptial agreements, and domestic violence protection orders.\n\nQ10. Do you provide criminal defense services?\nA: We provide criminal defense for both misdemeanors and felonies, including bail applications, trial defense, and appeal processes.",
+      "chunk_index": 5
+    },
+    "145": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "--------------------------------------------------------\nFEES & BILLING\n--------------------------------------------------------\n\nQ11. What is your billing structure?\nA: We offer flexible billing based on the type of service:\n- Hourly billing for consultations and ongoing litigation\n- Flat fees for business registration and document review\n- Retainer agreements for corporate clients",
+      "chunk_index": 6
+    },
+    "146": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q12. Do you offer free consultations?\nA: We offer a free 15-minute discovery call to understand your needs. Full consultations are billed at \u20a650,000/hour.\n\nQ13. Do you accept installment payments?\nA: Yes, installment plans are available for selected services. Our billing department will work with you to structure a suitable plan.\n\nQ14. What payment methods do you accept?\nA: We accept bank transfers, credit/debit cards, and USSD payments. International clients can pay via PayPal or Wise.",
+      "chunk_index": 7
+    },
+    "147": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "--------------------------------------------------------\nREAL ESTATE LAW\n--------------------------------------------------------\n\nQ15. Do you help with land due diligence?\nA: Yes. We verify land titles, conduct search at the Land Registry, review survey plans, and uncover any encumbrances or litigation risks.\n\nQ16. Can you help draft tenancy agreements?\nA: Yes, we draft and review tenancy, lease, and property sale agreements tailored to protect your interests.",
+      "chunk_index": 8
+    },
+    "148": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q17. What if I bought land and found it has multiple claimants?\nA: Contact us immediately. We can help you pursue rectification, compensation, or litigation depending on your case.\n\n--------------------------------------------------------\nCORPORATE CLIENTS\n--------------------------------------------------------\n\nQ18. Do you work with startups?\nA: Yes, we specialize in supporting startups with regulatory compliance, investor contracts, IP protection, NDAs, and employment agreements.",
+      "chunk_index": 9
+    },
+    "149": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q19. Can you act as legal counsel for my company?\nA: Yes, we offer retainer services where we act as your in-house counsel, handling daily legal issues, contract vetting, and dispute resolution.\n\nQ20. Do you help with regulatory filings like tax and PENCOM?\nA: Yes, we assist with FIRS tax registration, annual returns, NSITF, ITF, PENCOM, and BPP registrations for government contracts.",
+      "chunk_index": 10
+    },
+    "150": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "--------------------------------------------------------\nIMMIGRATION & VISA SERVICES\n--------------------------------------------------------\n\nQ21. Do you offer immigration advice?\nA: Yes. We assist with visa applications, work permits, business travel documentation, and permanent residency applications.\n\nQ22. Can you help me get a UK or Canada visa?\nA: While we do not guarantee approvals, we help with document preparation, application guidance, and interview coaching.",
+      "chunk_index": 11
+    },
+    "151": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "--------------------------------------------------------\nLITIGATION & DISPUTE RESOLUTION\n--------------------------------------------------------\n\nQ23. Can you represent me in court?\nA: Yes. We represent clients at Magistrate, High, and Appeal Courts across Nigeria. We also handle arbitration and mediation.\n\nQ24. What if I\u2019m not in Nigeria during my case?\nA: You can grant us Power of Attorney to act on your behalf. We also provide regular updates via email or virtual calls.",
+      "chunk_index": 12
+    },
+    "152": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q25. How long do court cases usually take?\nA: Duration varies based on case complexity and court schedules. However, we aim to move swiftly and avoid unnecessary delays.\n\n--------------------------------------------------------\nDOCUMENTATION & AGREEMENTS\n--------------------------------------------------------\n\nQ26. Can you help draft contracts?\nA: Yes. We draft, review, and negotiate contracts including employment agreements, vendor contracts, MOUs, NDAs, and shareholder agreements.",
+      "chunk_index": 13
+    },
+    "153": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q27. Do you notarize documents?\nA: Yes, we offer notarization and authentication services for local and international use.\n\nQ28. Can you help with will writing and estate planning?\nA: Yes. We draft wills, living wills, and handle probate applications and estate administration.\n\n--------------------------------------------------------\nCLIENT CONFIDENTIALITY\n--------------------------------------------------------",
+      "chunk_index": 14
+    },
+    "154": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q29. Are my conversations with your lawyers confidential?\nA: Absolutely. All communications are protected under attorney-client privilege. Your privacy and trust are paramount.\n\nQ30. Do you share my data with third parties?\nA: No. We do not sell, rent, or share your data. Any third-party interaction is only for necessary legal procedures with your consent.\n\n--------------------------------------------------------\nCONTACT & SUPPORT\n--------------------------------------------------------",
+      "chunk_index": 15
+    },
+    "155": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "Q31. How can I contact you?\nA:\n- Phone: +234-800-LEXTRUST\n- Email: support@lextrustlaw.com\n- Website: www.lextrustlaw.com\n- Social: @lextrustlegal on Twitter, LinkedIn & Instagram\n\nQ32. What is your response time?\nA: We strive to respond to emails and inquiries within 1 business day. For urgent matters, call us directly.\n\nQ33. Can I walk into your office without an appointment?\nA: We encourage clients to book an appointment to ensure availability, but we accept walk-ins during working hours.",
+      "chunk_index": 16
+    },
+    "156": {
+      "file_id": "8fa44df0-8a61-453d-be6f-e9b9711cfa9c",
+      "chunk_text": "--------------------------------------------------------\n\nThank you for considering LexTrust Legal Group.\nWe are committed to excellence, ethics, and effective representation.",
+      "chunk_index": 17
+    },
+    "167": {
+      "file_id": "d0499092-508d-448c-8365-6b4b81a4bf2e",
+      "chunk_text": "Q: What are your customer service hours?\nA: Our customer service is available from 9 AM to 5 PM, Monday through Friday.\n\nQ: How can I reset my password?\nA: You can reset your password by clicking on the \"Forgot Password\" link on the login page and following the instructions.\n\nQ: Do you offer international shipping?\nA: Yes, we ship to most countries worldwide. Shipping fees and delivery times vary depending on your location.",
+      "chunk_index": 0
+    },
+    "168": {
+      "file_id": "d0499092-508d-448c-8365-6b4b81a4bf2e",
+      "chunk_text": "Q: How can I track my order?\nA: After your order is shipped, you will receive an email with a tracking number and a link to track your shipment.\n\nQ: What is your return policy?\nA: We offer a 30-day return policy for unused and unopened products. To initiate a return, please contact our support team.\n\nQ: Can I change my delivery address after placing an order?\nA: Yes, you can change your delivery address within 12 hours of placing the order by contacting customer support.",
+      "chunk_index": 1
+    },
+    "169": {
+      "file_id": "d0499092-508d-448c-8365-6b4b81a4bf2e",
+      "chunk_text": "Q: How do I contact customer support?\nA: You can reach us by emailing support@example.com or using the live chat on our website.",
+      "chunk_index": 2
     }
   },
-  "next_chunk_id": 1
+  "next_chunk_id": 170
 }
