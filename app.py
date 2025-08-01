@@ -151,6 +151,7 @@ def ensure_vector_db_directory():
     """Ensure the vector database directory exists"""
     try:
         os.makedirs(VECTOR_DB_PATH, exist_ok=True)
+        logger.debug(f"Vector database directory ensured: {VECTOR_DB_PATH}")
     except Exception as e:
         logger.error(f"Error creating vector database directory: {e}")
         raise
@@ -208,27 +209,29 @@ def upload():
 
             # Create or update vector store
             try:
-                if os.path.exists(VECTOR_DB_PATH):
-                    vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
-                    new_vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
-                    vectorstore.merge_from(new_vectorstore)
-                    vectorstore.save_local(VECTOR_DB_PATH)
+                # Ensure vector database directory exists
+                ensure_vector_db_directory()
+                
+                if os.path.exists(VECTOR_DB_PATH) and os.path.getsize(VECTOR_DB_PATH) > 0:
+                    try:
+                        vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
+                        new_vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                        vectorstore.merge_from(new_vectorstore)
+                        vectorstore.save_local(VECTOR_DB_PATH)
+                        logger.info(f"Vector store updated successfully for {filename}")
+                    except Exception as e:
+                        logger.warning(f"Failed to load existing vector store, creating new one: {e}")
+                        vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                        vectorstore.save_local(VECTOR_DB_PATH)
+                        logger.info(f"Created new vector store for {filename}")
                 else:
                     vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
                     vectorstore.save_local(VECTOR_DB_PATH)
-                    
-                logger.info(f"Vector store updated successfully for {filename}")
-                
-            except Exception as e:
-                logger.error(f"Error updating vector store for {filename}: {e}")
-                # If vector store fails, try to create a new one
-                try:
-                    vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
-                    vectorstore.save_local(VECTOR_DB_PATH)
                     logger.info(f"Created new vector store for {filename}")
-                except Exception as e2:
-                    logger.error(f"Failed to create new vector store for {filename}: {e2}")
-                    raise Exception(f"Vector store error: {str(e2)}")
+                    
+            except Exception as e:
+                logger.error(f"Error creating vector store for {filename}: {e}")
+                raise Exception(f"Vector store error: {str(e)}")
             
             # Store chunk mappings
             for i, text_doc in enumerate(texts):
@@ -465,9 +468,11 @@ def clear_data():
         # Clear session data
         session.pop('chat_history', None)
         session.pop('file_content', None)
+        logger.info("Session data cleared")
         
         # Clear metadata
         metadata_manager.clear_all()
+        logger.info("Metadata cleared")
         
         # Clear vector database
         if os.path.exists(VECTOR_DB_PATH):

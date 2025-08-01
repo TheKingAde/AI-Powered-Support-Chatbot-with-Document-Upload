@@ -487,10 +487,14 @@ class ChatbotApp {
             const result = await response.json();
             console.log('Clear response:', result);
 
-            if (response.ok && result.status === 'success') {
-                this.showToast(result.message || 'All documents cleared successfully', 'success');
-                this.loadDocuments();
-                this.chatMessages.innerHTML = '';
+            if (response.ok) {
+                if (result.status === 'success' || result.message) {
+                    this.showToast(result.message || 'All documents cleared successfully', 'success');
+                    this.loadDocuments();
+                    this.chatMessages.innerHTML = '';
+                } else {
+                    throw new Error(result.error || 'Clear failed');
+                }
             } else {
                 throw new Error(result.error || result.message || 'Clear failed');
             }

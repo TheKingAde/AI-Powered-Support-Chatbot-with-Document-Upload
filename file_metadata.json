@@ -1,5 +1,20 @@
 {
-  "files": {},
-  "chunk_mappings": {},
-  "next_chunk_id": 0
+  "files": {
+    "f106e93b-3aa2-4b2e-9afd-9b9c6ca5c783": {
+      "filename": "test_upload.txt",
+      "file_size": 324,
+      "upload_date": "2025-08-01T17:09:30.337640",
+      "chunk_count": 1,
+      "file_type": ".txt",
+      "status": "uploaded"
+    }
+  },
+  "chunk_mappings": {
+    "0": {
+      "file_id": "f106e93b-3aa2-4b2e-9afd-9b9c6ca5c783",
+      "chunk_text": "This is a test file to verify that uploads work correctly after clearing all documents.\n\nThe system should be able to:\n1. Upload this file after clearing all documents\n2. Create a new vector database\n3. Store the file metadata correctly\n4. Allow the file to be deleted later\n\nThis tests the complete workflow after clearing.",
+      "chunk_index": 0
+    }
+  },
+  "next_chunk_id": 1
 }
