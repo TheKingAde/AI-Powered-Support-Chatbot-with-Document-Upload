@@ -34,6 +34,12 @@ EMBEDDING_MODEL = HuggingFaceEmbeddings(
 VECTOR_DB_PATH = "./vector_db"
 METADATA_FILE = "./file_metadata.json"
 
+def ensure_vector_db_directory():
+    """Ensure the vector_db directory exists"""
+    if not os.path.exists(VECTOR_DB_PATH):
+        os.makedirs(VECTOR_DB_PATH, exist_ok=True)
+        logger.info(f"Created vector_db directory: {VECTOR_DB_PATH}")
+
 class FileMetadataManager:
     """Manages file metadata and vector associations"""
     
@@ -199,14 +205,35 @@ def upload():
             )
 
             # Create or update vector store
-            if os.path.exists(VECTOR_DB_PATH):
-                vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
-                new_vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
-                vectorstore.merge_from(new_vectorstore)
-            else:
-                vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+            try:
+                # Ensure vector_db directory exists
+                ensure_vector_db_directory()
                 
-            vectorstore.save_local(VECTOR_DB_PATH)
+                if os.path.exists(VECTOR_DB_PATH) and os.listdir(VECTOR_DB_PATH):
+                    # Load existing vectorstore if it has content
+                    vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
+                    new_vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                    vectorstore.merge_from(new_vectorstore)
+                else:
+                    # Create new vectorstore
+                    vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                    
+                vectorstore.save_local(VECTOR_DB_PATH)
+            except Exception as e:
+                logger.error(f"Error creating/updating vector store: {e}")
+                # If vector store creation fails, try to create a fresh one
+                try:
+                    # Remove existing vector_db if it exists but is corrupted
+                    if os.path.exists(VECTOR_DB_PATH):
+                        shutil.rmtree(VECTOR_DB_PATH)
+                        ensure_vector_db_directory()
+                    
+                    # Create fresh vector store
+                    vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                    vectorstore.save_local(VECTOR_DB_PATH)
+                except Exception as e2:
+                    logger.error(f"Error creating fresh vector store: {e2}")
+                    raise Exception(f"Failed to create vector store: {str(e2)}")
             
             # Store chunk mappings
             for i, text_doc in enumerate(texts):
@@ -221,9 +248,15 @@ def upload():
             })
 
         except Exception as e:
+            logger.error(f"Error processing {filename}: {str(e)}")
+            # Clean up temporary file
+            if os.path.exists(file_path):
+                os.remove(file_path)
             return jsonify({'error': f'Error processing {filename}: {str(e)}'}), 500
         finally:
-            os.remove(file_path)
+            # Ensure temporary file is cleaned up
+            if os.path.exists(file_path):
+                os.remove(file_path)
 
     return jsonify({
         'message': f'Successfully processed {len(processed_files)} file(s)',
@@ -385,29 +418,27 @@ def delete_document(file_id):
             return jsonify({'error': 'Failed to delete file'}), 500
         
         # Rebuild vector store without the deleted chunks
-        if os.path.exists(VECTOR_DB_PATH):
-            try:
-                # Load existing vectorstore
-                vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
-                
-                # Get all remaining chunks from metadata
-                all_chunks = []
-                for chunk_id, mapping in metadata_manager.metadata['chunk_mappings'].items():
-                    all_chunks.append(mapping['chunk_text'])
-                
-                if all_chunks:
-                    # Create new vectorstore with remaining chunks
-                    new_vectorstore = FAISS.from_texts(all_chunks, EMBEDDING_MODEL)
-                    new_vectorstore.save_local(VECTOR_DB_PATH)
-                else:
-                    # No chunks left, remove vector store
-                    shutil.rmtree(VECTOR_DB_PATH)
-                    
-            except Exception as e:
-                logger.error(f"Error rebuilding vector store: {e}")
-                # If rebuilding fails, clear the vector store
+        try:
+            # Get all remaining chunks from metadata
+            all_chunks = []
+            for chunk_id, mapping in metadata_manager.metadata['chunk_mappings'].items():
+                all_chunks.append(mapping['chunk_text'])
+            
+            if all_chunks:
+                # Create new vectorstore with remaining chunks
+                ensure_vector_db_directory()
+                new_vectorstore = FAISS.from_texts(all_chunks, EMBEDDING_MODEL)
+                new_vectorstore.save_local(VECTOR_DB_PATH)
+            else:
+                # No chunks left, remove vector store
                 if os.path.exists(VECTOR_DB_PATH):
                     shutil.rmtree(VECTOR_DB_PATH)
+                    
+        except Exception as e:
+            logger.error(f"Error rebuilding vector store: {e}")
+            # If rebuilding fails, clear the vector store
+            if os.path.exists(VECTOR_DB_PATH):
+                shutil.rmtree(VECTOR_DB_PATH)
         
         return jsonify({
             'message': f'Document {file_metadata["filename"]} deleted successfully',
@@ -439,17 +470,33 @@ def health_check():
 @app.route('/clear', methods=['POST'])
 def clear_data():
     """Clear file content and chat history"""
-    session.pop('chat_history', None)
-    session.pop('file_content', None)
-    
-    # Clear metadata
-    metadata_manager.clear_all()
-    
-    # Clear vector database
-    if os.path.exists(VECTOR_DB_PATH):
-        shutil.rmtree(VECTOR_DB_PATH)
-    
-    return jsonify({'message': 'Chat history and file content cleared.'})
+    try:
+        # Clear session data
+        session.pop('chat_history', None)
+        session.pop('file_content', None)
+        
+        # Clear metadata
+        metadata_manager.clear_all()
+        
+        # Clear vector database
+        if os.path.exists(VECTOR_DB_PATH):
+            try:
+                shutil.rmtree(VECTOR_DB_PATH)
+                logger.info("Vector database cleared successfully")
+            except Exception as e:
+                logger.error(f"Error clearing vector database: {e}")
+                # Continue even if vector_db deletion fails
+        
+        return jsonify({
+            'message': 'Chat history and file content cleared successfully.',
+            'status': 'success'
+        })
+    except Exception as e:
+        logger.error(f"Error in clear_data: {e}")
+        return jsonify({
+            'error': f'Failed to clear data: {str(e)}',
+            'status': 'error'
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
