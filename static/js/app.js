@@ -476,6 +476,7 @@ class ChatbotApp {
         if (!confirm('Are you sure you want to clear all documents and chat history?')) return;
 
         try {
+            this.showLoadingOverlay();
             const response = await fetch('/clear', {
                 method: 'POST',
                 headers: {
@@ -484,18 +485,21 @@ class ChatbotApp {
             });
 
             const result = await response.json();
+            console.log('Clear response:', result);
 
-            if (response.ok) {
-                this.showToast(result.message, 'success');
+            if (response.ok && result.status === 'success') {
+                this.showToast(result.message || 'All documents cleared successfully', 'success');
                 this.loadDocuments();
                 this.chatMessages.innerHTML = '';
             } else {
-                throw new Error(result.error || 'Clear failed');
+                throw new Error(result.error || result.message || 'Clear failed');
             }
 
         } catch (error) {
             console.error('Clear error:', error);
             this.showToast(`Clear failed: ${error.message}`, 'error');
+        } finally {
+            this.hideLoadingOverlay();
         }
     }
 

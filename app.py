@@ -147,6 +147,14 @@ class FileMetadataManager:
 # Initialize metadata manager
 metadata_manager = FileMetadataManager(METADATA_FILE)
 
+def ensure_vector_db_directory():
+    """Ensure the vector database directory exists"""
+    try:
+        os.makedirs(VECTOR_DB_PATH, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Error creating vector database directory: {e}")
+        raise
+
 @app.route('/upload', methods=['POST'])
 def upload():
     # Handle both 'file' and 'files' field names for compatibility
@@ -199,14 +207,28 @@ def upload():
             )
 
             # Create or update vector store
-            if os.path.exists(VECTOR_DB_PATH):
-                vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
-                new_vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
-                vectorstore.merge_from(new_vectorstore)
-            else:
-                vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+            try:
+                if os.path.exists(VECTOR_DB_PATH):
+                    vectorstore = FAISS.load_local(VECTOR_DB_PATH, EMBEDDING_MODEL, allow_dangerous_deserialization=True)
+                    new_vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                    vectorstore.merge_from(new_vectorstore)
+                    vectorstore.save_local(VECTOR_DB_PATH)
+                else:
+                    vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                    vectorstore.save_local(VECTOR_DB_PATH)
+                    
+                logger.info(f"Vector store updated successfully for {filename}")
                 
-            vectorstore.save_local(VECTOR_DB_PATH)
+            except Exception as e:
+                logger.error(f"Error updating vector store for {filename}: {e}")
+                # If vector store fails, try to create a new one
+                try:
+                    vectorstore = FAISS.from_documents(texts, EMBEDDING_MODEL)
+                    vectorstore.save_local(VECTOR_DB_PATH)
+                    logger.info(f"Created new vector store for {filename}")
+                except Exception as e2:
+                    logger.error(f"Failed to create new vector store for {filename}: {e2}")
+                    raise Exception(f"Vector store error: {str(e2)}")
             
             # Store chunk mappings
             for i, text_doc in enumerate(texts):
@@ -439,17 +461,35 @@ def health_check():
 @app.route('/clear', methods=['POST'])
 def clear_data():
     """Clear file content and chat history"""
-    session.pop('chat_history', None)
-    session.pop('file_content', None)
-    
-    # Clear metadata
-    metadata_manager.clear_all()
-    
-    # Clear vector database
-    if os.path.exists(VECTOR_DB_PATH):
-        shutil.rmtree(VECTOR_DB_PATH)
-    
-    return jsonify({'message': 'Chat history and file content cleared.'})
+    try:
+        # Clear session data
+        session.pop('chat_history', None)
+        session.pop('file_content', None)
+        
+        # Clear metadata
+        metadata_manager.clear_all()
+        
+        # Clear vector database
+        if os.path.exists(VECTOR_DB_PATH):
+            try:
+                shutil.rmtree(VECTOR_DB_PATH)
+                logger.info("Vector database cleared successfully")
+            except Exception as e:
+                logger.error(f"Error clearing vector database: {e}")
+                # Continue even if vector database clearing fails
+        
+        logger.info("All data cleared successfully")
+        return jsonify({
+            'message': 'Chat history and file content cleared successfully.',
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in clear_data: {e}")
+        return jsonify({
+            'error': f'Failed to clear data: {str(e)}',
+            'status': 'error'
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
