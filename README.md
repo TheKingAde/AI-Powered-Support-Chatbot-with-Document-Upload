@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Web application that allows users to upload various types of documents (PDF, XLSX, CSV, images, and more) to train/customize the chatbot’s knowledge base. The chatbot integrates with the **OpenAI API** to provide smart, human-like answers based on uploaded content or predefined FAQs.
+Web application that allows users to upload various types of documents (PDF, XLSX, CSV, images, and more) to train/customize the chatbot’s knowledge base. The chatbot integrates with the **g4f ** to provide smart, human-like answers based on uploaded content or predefined FAQs.
 
 ---
 
@@ -10,7 +10,7 @@ Web application that allows users to upload various types of documents (PDF, XLS
 
 - **Frontend:** HTML, CSS (modern frameworks or vanilla with animations), JavaScript  
 - **Backend:** Python Flask  
-- **AI Integration:** OpenAI API (chat/completion + embeddings)  
+- **AI Integration:** g4f  (chat/completion + embeddings)  
 - **File Processing:** Support for PDF, XLSX, CSV, images (e.g., OCR)  
 - **Storage:** Temporary document storage, embeddings stored in a vector database or in-memory store  
 - **Optional:** Use vector DB (like FAISS) or lightweight search index for retrieval
@@ -46,12 +46,12 @@ Web application that allows users to upload various types of documents (PDF, XLS
 
 ### 3. AI Integration
 
-- Use OpenAI API to:
+- Use g4f  to:
   - Generate vector embeddings for all document chunks (using embedding models)
   - Store embeddings in a vector search system (can be simple in-memory or FAISS)
 - When user asks a question:
   - Use similarity search on embeddings to find relevant chunks
-  - Send retrieved context along with user query to OpenAI chat/completion API
+  - Send retrieved context along with user query to g4f chat/completion 
   - Return human-like, context-aware answers
 - Support fallback to a default FAQ knowledge base if no documents are uploaded
 
@@ -79,19 +79,6 @@ Web application that allows users to upload various types of documents (PDF, XLS
 
 ---
 
-## OpenAI API Key Requirement
-
-This project **requires an OpenAI API key** to access OpenAI’s GPT models for chat completion and embeddings generation. The API key should be:
-
-- Safely stored in the backend environment (e.g., environment variables)
-- Loaded by the Flask backend securely and **never exposed to frontend**
-- Used for all calls to OpenAI endpoints such as `/v1/chat/completions` and `/v1/embeddings`
-- Managed with proper error handling for quota limits or invalid keys
-
-Make sure to sign up at [OpenAI](https://platform.openai.com/) to obtain your API key, which you will need to configure for local development and production deployment.
-
----
-
 ## Non-Functional Requirements
 
 - Responsive design supporting desktop and mobile
@@ -109,7 +96,7 @@ Make sure to sign up at [OpenAI](https://platform.openai.com/) to obtain your AP
 
 ## Summary
 
-Deliver a **user-friendly, visually appealing chatbot web app** powered by OpenAI and trained dynamically on uploaded documents of any format — PDFs, spreadsheets, CSVs, images (OCR), and more. The chatbot should provide smart, context-aware responses based on the uploaded knowledge base, with a modern frontend featuring animations and smooth interactions.
+Deliver a **user-friendly, visually appealing chatbot web app** powered by g4f and trained dynamically on uploaded documents of any format — PDFs, spreadsheets, CSVs, images (OCR), and more. The chatbot should provide smart, context-aware responses based on the uploaded knowledge base, with a modern frontend featuring animations and smooth interactions.
 
 This project demonstrates your skills in:
 
@@ -126,7 +113,7 @@ If needed, please help generate code snippets for:
 - File upload handling and text extraction  
 - Vector embedding generation & similarity search  
 - Chatbot frontend with real-time updates and animations  
-- OpenAI API integration with context retrieval  
+- g4f integration with context retrieval  
 
 ---
 
